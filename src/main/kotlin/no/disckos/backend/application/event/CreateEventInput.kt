@@ -1,10 +1,8 @@
-package no.disckos.backend.api.dto.event
+package no.disckos.backend.application.event
 
 import java.time.OffsetDateTime
-import java.util.UUID
 
-data class EventResponse(
-    val id: UUID,
+data class CreateEventInput(
     val date: OffsetDateTime,
     val title: String,
     val description: String,
