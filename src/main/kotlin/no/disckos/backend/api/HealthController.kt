@@ -1,6 +1,6 @@
 package no.disckos.backend.api
 
-import no.disckos.backend.api.dto.HealthResponse
+import no.disckos.backend.api.dto.health.HealthResponse
 import no.disckos.backend.service.HealthService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
