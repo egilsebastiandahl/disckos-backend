@@ -6,7 +6,7 @@ Minimal single-admin auth with HS256 JWT access + refresh tokens (no users table
 
 Required env vars:
 - `ADMIN_USERNAME` - admin username
-- `ADMIN_PASSWORD_HASH` - bcrypt hash of admin password
+- `ADMIN_PASSWORD` - bcrypt hash of admin password
 - `JWT_SECRET` - HS256 secret for access tokens (at least 32 bytes)
 - `REFRESH_JWT_SECRET` - HS256 secret for refresh tokens (at least 32 bytes)
 - `ACCESS_TOKEN_EXPIRY_SECONDS` - access token lifetime in seconds (e.g., 900)
@@ -15,7 +15,7 @@ Required env vars:
 Example `.env` for local dev:
 ```
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD_HASH=$2a$10$ZtZ4zA8mKx3aPh3Ox9D9Yekz3vTtXawvyP4vuwF6wglcUo5G7w0Bq
+ADMIN_PASSWORD=$2a$10$ZtZ4zA8mKx3aPh3Ox9D9Yekz3vTtXawvyP4vuwF6wglcUo5G7w0Bq
 JWT_SECRET=dev-secret-dev-secret-dev-secret-dev-secret
 REFRESH_JWT_SECRET=dev-refresh-dev-refresh-dev-refresh-dev
 ACCESS_TOKEN_EXPIRY_SECONDS=900

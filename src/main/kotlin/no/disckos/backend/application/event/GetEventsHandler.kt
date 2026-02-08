@@ -13,6 +13,6 @@ class GetEventsHandler(
     @Transactional(readOnly = true)
     fun handle(query: GetEventsQuery = GetEventsQuery()): List<EventEntity> {
         val direction = if (query.sortAscending) Sort.Direction.ASC else Sort.Direction.DESC
-        return eventRepository.findAll(Sort.by(direction, "date"))
+        return eventRepository.findAllByPublishedTrue(Sort.by(direction, "date"))
     }
 }
