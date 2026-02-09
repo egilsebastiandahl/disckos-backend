@@ -1,4 +1,4 @@
-package no.disckos.backend.api.dto.event
+package no.disckos.backend.api.dto.admin.event
 
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank

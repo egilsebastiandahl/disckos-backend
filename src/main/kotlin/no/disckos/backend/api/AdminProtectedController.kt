@@ -6,7 +6,7 @@ import no.disckos.backend.api.dto.admin.event.UpdateEventRequest
 import no.disckos.backend.api.dto.admin.player.CreatePlayerRequest
 import no.disckos.backend.api.dto.admin.player.PlayerResponse
 import no.disckos.backend.api.dto.admin.player.UpdatePlayerRequest
-import no.disckos.backend.api.dto.event.CreateEventRequest
+import no.disckos.backend.api.dto.admin.event.CreateEventRequest
 import no.disckos.backend.application.admin.event.DeleteEventHandler
 import no.disckos.backend.application.admin.event.PublishEventHandler
 import no.disckos.backend.application.admin.event.UnpublishEventHandler
@@ -17,8 +17,8 @@ import no.disckos.backend.application.admin.player.CreatePlayerInput
 import no.disckos.backend.application.admin.player.DeletePlayerHandler
 import no.disckos.backend.application.admin.player.UpdatePlayerHandler
 import no.disckos.backend.application.admin.player.UpdatePlayerInput
-import no.disckos.backend.application.event.CreateEventHandler
-import no.disckos.backend.application.event.CreateEventInput
+import no.disckos.backend.application.admin.event.CreateEventHandler
+import no.disckos.backend.application.admin.event.CreateEventInput
 import no.disckos.backend.domain.EventEntity
 import no.disckos.backend.domain.Player
 import org.springframework.http.HttpStatus

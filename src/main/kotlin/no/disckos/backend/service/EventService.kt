@@ -1,6 +1,6 @@
 package no.disckos.backend.service
 
-import no.disckos.backend.api.dto.event.CreateEventRequest
+import no.disckos.backend.api.dto.admin.event.CreateEventRequest
 import no.disckos.backend.domain.EventEntity
 import no.disckos.backend.repository.EventRepository
 import org.springframework.data.domain.Sort

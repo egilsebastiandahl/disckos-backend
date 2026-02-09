@@ -4,6 +4,7 @@ import no.disckos.backend.domain.Player
 import no.disckos.backend.repository.PlayerRepository
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Component
 class CreatePlayerHandler(
@@ -13,6 +14,7 @@ class CreatePlayerHandler(
     fun handle(cmd: CreatePlayerInput): Player =
         playerRepository.save(
             Player().apply {
+                id = UUID.randomUUID()
                 name = cmd.name.trim()
                 gender = cmd.gender
                 roundsPlayed = cmd.roundsPlayed

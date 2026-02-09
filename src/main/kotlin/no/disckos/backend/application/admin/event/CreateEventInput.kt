@@ -1,4 +1,4 @@
-package no.disckos.backend.application.event
+package no.disckos.backend.application.admin.event
 
 import java.time.OffsetDateTime
 
