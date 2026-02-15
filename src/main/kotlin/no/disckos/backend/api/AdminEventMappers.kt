@@ -6,6 +6,7 @@ import no.disckos.backend.api.dto.admin.event.UpdateEventRequest
 import no.disckos.backend.application.admin.event.CreateEventInput
 import no.disckos.backend.application.admin.event.UpdateEventInput
 import no.disckos.backend.domain.EventEntity
+import no.disckos.backend.domain.LocationEntity
 
 fun CreateEventRequest.toInput(): CreateEventInput =
     CreateEventInput(
@@ -29,13 +30,13 @@ fun UpdateEventRequest.toInput(id: java.util.UUID): UpdateEventInput =
         rounds = rounds
     )
 
-fun EventEntity.toAdminResponse(): AdminEventResponse =
+fun EventEntity.toAdminResponse(location: LocationEntity?): AdminEventResponse =
     AdminEventResponse(
         id = id,
         date = date,
         title = title,
         description = description,
-        locationId = locationId,
+        location = location?.toAdminResponse(),
         teamEvent = teamEvent,
         rounds = rounds,
         published = published

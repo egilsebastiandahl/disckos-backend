@@ -10,6 +10,7 @@ import no.disckos.backend.application.admin.event.GetAllEventsHandler
 import no.disckos.backend.application.admin.event.PublishEventHandler
 import no.disckos.backend.application.admin.event.UnpublishEventHandler
 import no.disckos.backend.application.admin.event.UpdateEventHandler
+import no.disckos.backend.repository.LocationRepository
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -32,19 +33,28 @@ class AdminEventController(
     private val publishEventHandler: PublishEventHandler,
     private val unpublishEventHandler: UnpublishEventHandler,
     private val deleteEventHandler: DeleteEventHandler,
-    private val getAllEventsHandler: GetAllEventsHandler
+    private val getAllEventsHandler: GetAllEventsHandler,
+    private val locationRepository: LocationRepository
 ) {
 
     @GetMapping
     fun getEvents(): ResponseEntity<List<AdminEventResponse>> {
-        return ResponseEntity.ok(getAllEventsHandler.handle().map { it.toAdminResponse() })
+        val events = getAllEventsHandler.handle()
+        val locationIds = events.mapNotNull { it.locationId }.distinct()
+        val locationMap = if (locationIds.isEmpty()) {
+            emptyMap()
+        } else {
+            locationRepository.findAllById(locationIds).associateBy { it.id }
+        }
+        return ResponseEntity.ok(events.map { it.toAdminResponse(locationMap[it.locationId]) })
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createEvent(@Valid @RequestBody request: CreateEventRequest): AdminEventResponse {
         val created = createEventHandler.handle(request.toInput())
-        return created.toAdminResponse()
+        val location = created.locationId?.let { locationRepository.findById(it).orElse(null) }
+        return created.toAdminResponse(location)
     }
 
     @PutMapping("/{id}")
@@ -53,16 +63,23 @@ class AdminEventController(
         @RequestBody request: UpdateEventRequest
     ): AdminEventResponse {
         val updated = updateEventHandler.handle(request.toInput(id))
-        return updated.toAdminResponse()
+        val location = updated.locationId?.let { locationRepository.findById(it).orElse(null) }
+        return updated.toAdminResponse(location)
     }
 
     @PostMapping("/{id}/publish")
     fun publishEvent(@PathVariable id: java.util.UUID): AdminEventResponse =
-        publishEventHandler.handle(id).toAdminResponse()
+        publishEventHandler.handle(id).let { updated ->
+            val location = updated.locationId?.let { locationRepository.findById(it).orElse(null) }
+            updated.toAdminResponse(location)
+        }
 
     @PostMapping("/{id}/unpublish")
     fun unpublishEvent(@PathVariable id: java.util.UUID): AdminEventResponse =
-        unpublishEventHandler.handle(id).toAdminResponse()
+        unpublishEventHandler.handle(id).let { updated ->
+            val location = updated.locationId?.let { locationRepository.findById(it).orElse(null) }
+            updated.toAdminResponse(location)
+        }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
