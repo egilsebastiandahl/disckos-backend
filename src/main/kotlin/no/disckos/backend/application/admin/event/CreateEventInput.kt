@@ -8,5 +8,6 @@ data class CreateEventInput(
     val description: String,
     val location: String,
     val teamEvent: Boolean,
+    val published: Boolean,
     val rounds: Int
 )

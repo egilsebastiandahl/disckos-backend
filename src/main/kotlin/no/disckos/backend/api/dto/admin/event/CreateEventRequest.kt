@@ -20,6 +20,8 @@ data class CreateEventRequest(
 
     val teamEvent: Boolean,
 
+    val published: Boolean,
+
     @field:Min(1)
     val rounds: Int
 )

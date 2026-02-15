@@ -14,6 +14,7 @@ fun CreateEventRequest.toInput(): CreateEventInput =
         description = description,
         location = location,
         teamEvent = teamEvent,
+        published = published,
         rounds = rounds
     )
 
