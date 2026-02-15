@@ -6,6 +6,7 @@ import no.disckos.backend.api.dto.admin.event.CreateEventRequest
 import no.disckos.backend.api.dto.admin.event.UpdateEventRequest
 import no.disckos.backend.application.admin.event.CreateEventHandler
 import no.disckos.backend.application.admin.event.DeleteEventHandler
+import no.disckos.backend.application.admin.event.GetAllEventsHandler
 import no.disckos.backend.application.admin.event.PublishEventHandler
 import no.disckos.backend.application.admin.event.UnpublishEventHandler
 import no.disckos.backend.application.admin.event.UpdateEventHandler
@@ -23,19 +24,20 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/admin/events")
+@RequestMapping("/admin/event")
 @PreAuthorize("hasRole('admin')")
 class AdminEventController(
     private val createEventHandler: CreateEventHandler,
     private val updateEventHandler: UpdateEventHandler,
     private val publishEventHandler: PublishEventHandler,
     private val unpublishEventHandler: UnpublishEventHandler,
-    private val deleteEventHandler: DeleteEventHandler
+    private val deleteEventHandler: DeleteEventHandler,
+    private val getAllEventsHandler: GetAllEventsHandler
 ) {
 
     @GetMapping
-    fun getEvents(): ResponseEntity<List<Map<String, Any>>> {
-        return ResponseEntity.ok(emptyList())
+    fun getEvents(): ResponseEntity<List<AdminEventResponse>> {
+        return ResponseEntity.ok(getAllEventsHandler.handle().map { it.toAdminResponse() })
     }
 
     @PostMapping
