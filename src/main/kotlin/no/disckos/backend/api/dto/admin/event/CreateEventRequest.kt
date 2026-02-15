@@ -15,8 +15,8 @@ data class CreateEventRequest(
     @field:NotBlank
     val description: String,
 
-    @field:NotBlank
-    val location: String,
+    @field:NotNull
+    val locationId: java.util.UUID,
 
     val teamEvent: Boolean,
 

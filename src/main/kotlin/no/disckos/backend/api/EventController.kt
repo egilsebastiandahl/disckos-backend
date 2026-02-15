@@ -24,7 +24,7 @@ class EventController(
             date = date,
             title = title,
             description = description,
-            location = location,
+            locationId = locationId,
             teamEvent = teamEvent,
             rounds = rounds
         )

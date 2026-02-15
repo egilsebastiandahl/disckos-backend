@@ -6,7 +6,7 @@ data class CreateEventInput(
     val date: OffsetDateTime,
     val title: String,
     val description: String,
-    val location: String,
+    val locationId: java.util.UUID,
     val teamEvent: Boolean,
     val published: Boolean,
     val rounds: Int

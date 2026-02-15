@@ -7,7 +7,7 @@ data class UpdateEventRequest(
     val date: OffsetDateTime? = null,
     val title: String? = null,
     val description: String? = null,
-    val location: String? = null,
+    val locationId: java.util.UUID? = null,
     val teamEvent: Boolean? = null,
     @field:Min(1)
     val rounds: Int? = null

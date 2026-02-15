@@ -8,7 +8,7 @@ data class EventResponse(
     val date: OffsetDateTime,
     val title: String,
     val description: String,
-    val location: String,
+    val locationId: UUID?,
     val teamEvent: Boolean,
     val rounds: Int
 )
