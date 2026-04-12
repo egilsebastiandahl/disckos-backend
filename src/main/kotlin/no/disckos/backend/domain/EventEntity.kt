@@ -33,9 +33,12 @@ class EventEntity(
     var rounds: Int,
 
     @Column(name = "published", nullable = false)
-    var published: Boolean = false
+    var published: Boolean = false,
+
+    @Column(name = "major", nullable = false)
+    var major: Boolean = false
 ) {
     override fun toString(): String {
-        return "EventEntity(id=$id, date=$date, title='$title', description='$description', locationId=$locationId, teamEvent=$teamEvent, rounds=$rounds, published=$published)"
+        return "EventEntity(id=$id, date=$date, title='$title', description='$description', locationId=$locationId, teamEvent=$teamEvent, rounds=$rounds, published=$published, major=$major)"
     }
 }

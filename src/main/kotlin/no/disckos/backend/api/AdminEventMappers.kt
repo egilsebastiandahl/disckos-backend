@@ -16,7 +16,8 @@ fun CreateEventRequest.toInput(): CreateEventInput =
         locationId = locationId,
         teamEvent = teamEvent,
         published = published,
-        rounds = rounds
+        rounds = rounds,
+        major = major
     )
 
 fun UpdateEventRequest.toInput(id: java.util.UUID): UpdateEventInput =
@@ -27,7 +28,8 @@ fun UpdateEventRequest.toInput(id: java.util.UUID): UpdateEventInput =
         description = description,
         locationId = locationId,
         teamEvent = teamEvent,
-        rounds = rounds
+        rounds = rounds,
+        major = major
     )
 
 fun EventEntity.toAdminResponse(location: LocationEntity?): AdminEventResponse =
@@ -39,5 +41,6 @@ fun EventEntity.toAdminResponse(location: LocationEntity?): AdminEventResponse =
         location = location?.toAdminResponse(),
         teamEvent = teamEvent,
         rounds = rounds,
-        published = published
+        published = published,
+        major = major
     )

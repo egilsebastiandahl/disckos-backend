@@ -36,6 +36,7 @@ class EventController(
             description = description,
             location = location?.toResponse(),
             teamEvent = teamEvent,
-            rounds = rounds
+            rounds = rounds,
+            major = major
         )
 }

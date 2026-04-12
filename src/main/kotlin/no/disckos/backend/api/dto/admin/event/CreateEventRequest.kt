@@ -23,5 +23,7 @@ data class CreateEventRequest(
     val published: Boolean,
 
     @field:Min(1)
-    val rounds: Int
+    val rounds: Int,
+
+    val major: Boolean
 )

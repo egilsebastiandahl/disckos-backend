@@ -11,5 +11,6 @@ data class EventResponse(
     val description: String,
     val location: LocationResponse?,
     val teamEvent: Boolean,
-    val rounds: Int
+    val rounds: Int,
+    val major: Boolean
 )

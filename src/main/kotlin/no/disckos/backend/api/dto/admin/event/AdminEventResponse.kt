@@ -12,5 +12,6 @@ data class AdminEventResponse(
     val location: AdminLocationResponse?,
     val teamEvent: Boolean,
     val rounds: Int,
-    val published: Boolean
+    val published: Boolean,
+    val major: Boolean
 )

@@ -10,5 +10,6 @@ data class UpdateEventInput(
     val description: String? = null,
     val locationId: UUID? = null,
     val teamEvent: Boolean? = null,
-    val rounds: Int? = null
+    val rounds: Int? = null,
+    val major: Boolean? = null
 )

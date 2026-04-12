@@ -27,7 +27,8 @@ class CreateEventHandler(
                 description = cmd.description.trim(),
                 locationId = cmd.locationId,
                 teamEvent = cmd.teamEvent,
-                rounds = cmd.rounds
+                rounds = cmd.rounds,
+                major = cmd.major
             )
         )
     }

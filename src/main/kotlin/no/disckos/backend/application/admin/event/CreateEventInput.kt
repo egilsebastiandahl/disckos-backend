@@ -9,5 +9,6 @@ data class CreateEventInput(
     val locationId: java.util.UUID,
     val teamEvent: Boolean,
     val published: Boolean,
-    val rounds: Int
+    val rounds: Int,
+    val major: Boolean
 )

@@ -10,5 +10,6 @@ data class UpdateEventRequest(
     val locationId: java.util.UUID? = null,
     val teamEvent: Boolean? = null,
     @field:Min(1)
-    val rounds: Int? = null
+    val rounds: Int? = null,
+    val major: Boolean? = null
 )

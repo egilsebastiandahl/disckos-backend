@@ -29,6 +29,7 @@ class UpdateEventHandler(
         }
         cmd.teamEvent?.let { event.teamEvent = it }
         cmd.rounds?.let { event.rounds = it }
+        cmd.major?.let { event.major = it }
 
         return eventRepository.save(event)
     }
