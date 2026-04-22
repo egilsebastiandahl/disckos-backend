@@ -23,4 +23,15 @@ class ProfileService(private val profileRepository: ProfileRepository) {
         p.updatedAt = OffsetDateTime.now()
         return profileRepository.save(p)
     }
+
+    fun updateProfile(userId: UUID, username: String?, displayName: String?, bio: String?): Profile {
+        val existing = profileRepository.findById(userId)
+        if (!existing.isPresent) throw NoSuchElementException("Profile not found")
+        val p = existing.get()
+        if (username != null) p.username = username
+        if (displayName != null) p.displayName = displayName
+        if (bio != null) p.bio = bio
+        p.updatedAt = java.time.OffsetDateTime.now()
+        return profileRepository.save(p)
+    }
 }
