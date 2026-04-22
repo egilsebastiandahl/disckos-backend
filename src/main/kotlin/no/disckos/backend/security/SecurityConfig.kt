@@ -19,7 +19,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-class SecurityConfig(private val jwtAuthenticationFilter: JwtAuthenticationFilter) {
+class SecurityConfig(private val jwtAuthenticationFilter: JwtAuthenticationFilter, private val supabaseJwtAuthenticationFilter: SupabaseJwtAuthenticationFilter) {
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -33,6 +33,7 @@ class SecurityConfig(private val jwtAuthenticationFilter: JwtAuthenticationFilte
             it.requestMatchers("/admin/**").hasRole("admin")
             it.anyRequest().permitAll()
         }
+        http.addFilterBefore(supabaseJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
         return http.build()
     }
