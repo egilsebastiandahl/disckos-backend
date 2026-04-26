@@ -12,6 +12,8 @@ import org.springframework.test.context.ActiveProfiles
         "REFRESH_JWT_SECRET=dev-refresh-dev-refresh-dev-refresh-dev",
         "ACCESS_TOKEN_EXPIRY_SECONDS=900",
         "REFRESH_TOKEN_EXPIRY_SECONDS=604800",
+        "SUPABASE_JWT_SECRET=test-secret-test-secret-test-secret-test",
+        "SUPABASE_URL=",
     ],
 )
 @ActiveProfiles("test")

@@ -30,12 +30,9 @@ class JwtAuthenticationFilter(private val jwtService: JwtService) : OncePerReque
             val authorities = roles.map { SimpleGrantedAuthority("ROLE_$it") }
             val auth = UsernamePasswordAuthenticationToken(claims.subject, null, authorities)
             SecurityContextHolder.getContext().authentication = auth
-            filterChain.doFilter(request, response)
         } catch (ex: Exception) {
-            SecurityContextHolder.clearContext()
-            response.status = HttpServletResponse.SC_UNAUTHORIZED
-            response.contentType = "application/json"
-            response.writer.write("{\"error\":\"Invalid or expired access token\"}")
+            // Not an admin token — let the next filter try
         }
+        filterChain.doFilter(request, response)
     }
 }

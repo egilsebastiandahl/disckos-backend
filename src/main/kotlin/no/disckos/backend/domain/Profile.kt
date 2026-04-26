@@ -5,6 +5,8 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.annotations.ColumnDefault
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -30,6 +32,7 @@ class Profile {
     @Column(name = "is_admin")
     var isAdmin: Boolean? = false
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "settings", columnDefinition = "jsonb")
     var settings: String? = null
 

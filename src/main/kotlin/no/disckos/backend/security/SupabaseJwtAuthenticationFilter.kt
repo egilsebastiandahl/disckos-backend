@@ -18,7 +18,7 @@ class SupabaseJwtAuthenticationFilter(private val supabaseJwtService: SupabaseJw
         filterChain: FilterChain,
     ) {
         val header = request.getHeader(HttpHeaders.AUTHORIZATION)
-        if (header.isNullOrBlank() || !header.startsWith("Bearer ")) {
+        if (header.isNullOrBlank() || !header.startsWith("Bearer ") || SecurityContextHolder.getContext().authentication != null) {
             filterChain.doFilter(request, response)
             return
         }
@@ -30,12 +30,9 @@ class SupabaseJwtAuthenticationFilter(private val supabaseJwtService: SupabaseJw
             val authorities = listOf(SimpleGrantedAuthority("ROLE_USER"))
             val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
             SecurityContextHolder.getContext().authentication = auth
-            filterChain.doFilter(request, response)
         } catch (ex: Exception) {
-            SecurityContextHolder.clearContext()
-            response.status = HttpServletResponse.SC_UNAUTHORIZED
-            response.contentType = "application/json"
-            response.writer.write("{\"error\":\"Invalid or expired Supabase access token\"}")
+            // Not a valid Supabase token — leave unauthenticated
         }
+        filterChain.doFilter(request, response)
     }
 }
