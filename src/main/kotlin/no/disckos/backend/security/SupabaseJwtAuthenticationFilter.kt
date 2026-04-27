@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import no.disckos.backend.repository.ProfileRepository
+import org.springframework.context.annotation.Lazy
 import org.springframework.http.HttpHeaders
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -15,7 +16,7 @@ import java.util.UUID
 @Component
 class SupabaseJwtAuthenticationFilter(
     private val supabaseJwtService: SupabaseJwtService,
-    private val profileRepository: ProfileRepository,
+    @Lazy private val profileRepository: ProfileRepository,
 ) : OncePerRequestFilter() {
     override fun doFilterInternal(
         request: HttpServletRequest,
