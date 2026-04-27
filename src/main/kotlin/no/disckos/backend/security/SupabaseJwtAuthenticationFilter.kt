@@ -3,15 +3,20 @@ package no.disckos.backend.security
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import no.disckos.backend.repository.ProfileRepository
 import org.springframework.http.HttpHeaders
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import java.util.UUID
 
 @Component
-class SupabaseJwtAuthenticationFilter(private val supabaseJwtService: SupabaseJwtService) : OncePerRequestFilter() {
+class SupabaseJwtAuthenticationFilter(
+    private val supabaseJwtService: SupabaseJwtService,
+    private val profileRepository: ProfileRepository,
+) : OncePerRequestFilter() {
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -27,7 +32,19 @@ class SupabaseJwtAuthenticationFilter(private val supabaseJwtService: SupabaseJw
         try {
             val claims = supabaseJwtService.parseToken(token)
             val userId = claims.subject
-            val authorities = listOf(SimpleGrantedAuthority("ROLE_USER"))
+            val authorities = mutableListOf(SimpleGrantedAuthority("ROLE_USER"))
+
+            // Check if the user is an admin based on their profile
+            try {
+                val uuid = UUID.fromString(userId)
+                val profile = profileRepository.findById(uuid)
+                if (profile.isPresent && profile.get().isAdmin == true) {
+                    authorities.add(SimpleGrantedAuthority("ROLE_admin"))
+                }
+            } catch (_: Exception) {
+                // If profile lookup fails, continue with basic USER role
+            }
+
             val auth = UsernamePasswordAuthenticationToken(userId, null, authorities)
             SecurityContextHolder.getContext().authentication = auth
         } catch (ex: Exception) {
