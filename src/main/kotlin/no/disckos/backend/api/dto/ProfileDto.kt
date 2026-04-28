@@ -9,4 +9,6 @@ data class ProfileDto(
     val avatarUrl: String?,
     val bio: String?,
     val isAdmin: Boolean,
+    val playerId: UUID? = null,
+    val playerName: String? = null,
 )
