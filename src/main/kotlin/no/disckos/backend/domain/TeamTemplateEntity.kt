@@ -8,21 +8,18 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 @Entity
-@Table(name = "teams")
-class TeamEntity(
+@Table(name = "team_templates")
+class TeamTemplateEntity(
     @Id
     @Column(name = "id", nullable = false)
     var id: UUID = UUID.randomUUID(),
 
-    @Column(name = "event_id", nullable = false)
-    var eventId: UUID,
-
     @Column(name = "name", nullable = false)
     var name: String,
 
-    @Column(name = "team_template_id")
-    var teamTemplateId: UUID? = null,
-
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
-    var createdAt: OffsetDateTime? = null
+    var createdAt: OffsetDateTime? = null,
+
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
+    var updatedAt: OffsetDateTime? = null
 )

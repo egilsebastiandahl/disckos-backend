@@ -6,4 +6,5 @@ import java.util.UUID
 
 interface TeamRepository : JpaRepository<TeamEntity, UUID> {
     fun findByEventId(eventId: UUID): List<TeamEntity>
+    fun countByTeamTemplateId(teamTemplateId: UUID): Long
 }
