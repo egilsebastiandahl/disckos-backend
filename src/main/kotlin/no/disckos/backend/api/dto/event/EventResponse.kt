@@ -12,5 +12,6 @@ data class EventResponse(
     val location: LocationResponse?,
     val teamEvent: Boolean,
     val rounds: Int,
-    val major: Boolean
+    val major: Boolean,
+    val signups: List<EventSignupResponse> = emptyList(),
 )
