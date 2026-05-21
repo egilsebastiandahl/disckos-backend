@@ -9,18 +9,6 @@ fun CreatePlayerRequest.toInput(): CreatePlayerInput =
     CreatePlayerInput(
         name = name,
         gender = gender,
-        roundsPlayed = roundsPlayed,
-        averageScore = averageScore,
-        bestScore = bestScore,
-        worstScore = worstScore,
-        singleBogeyCount = singleBogeyCount,
-        doubleBogeyCount = doubleBogeyCount,
-        tripleBogeyCount = tripleBogeyCount,
-        parCount = parCount,
-        birdieCount = birdieCount,
-        aceCount = aceCount,
-        eagleCount = eagleCount,
-        throws = throws,
         catchphrase = catchphrase
     )
 
@@ -29,19 +17,5 @@ fun UpdatePlayerRequest.toInput(id: java.util.UUID): UpdatePlayerInput =
         id = id,
         name = name,
         gender = gender,
-        roundsPlayed = roundsPlayed,
-        averageScore = averageScore,
-        bestScore = bestScore,
-        worstScore = worstScore,
-        singleBogeyCount = singleBogeyCount,
-        doubleBogeyCount = doubleBogeyCount,
-        tripleBogeyCount = tripleBogeyCount,
-        parCount = parCount,
-        birdieCount = birdieCount,
-        aceCount = aceCount,
-        eagleCount = eagleCount,
-        throws = throws,
         catchphrase = catchphrase
     )
-
-
