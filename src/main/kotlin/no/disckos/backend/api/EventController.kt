@@ -2,14 +2,18 @@ package no.disckos.backend.api
 
 import no.disckos.backend.api.dto.event.EventResponse
 import no.disckos.backend.api.dto.event.EventSignupResponse
+import no.disckos.backend.api.dto.event.EventStandingsResponse
+import no.disckos.backend.application.event.GetEventStandingsHandler
 import no.disckos.backend.repository.EventSignupRepository
 import no.disckos.backend.repository.LocationRepository
 import no.disckos.backend.repository.ProfileRepository
 import no.disckos.backend.application.event.GetEventsHandler
 import no.disckos.backend.domain.EventEntity
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/event")
@@ -18,7 +22,12 @@ class EventController(
     private val locationRepository: LocationRepository,
     private val eventSignupRepository: EventSignupRepository,
     private val profileRepository: ProfileRepository,
+    private val getEventStandingsHandler: GetEventStandingsHandler,
 ) {
+    @GetMapping("/{id}/standings")
+    fun getStandings(@PathVariable id: UUID): EventStandingsResponse =
+        getEventStandingsHandler.handle(id)
+
     // Gets all the events
     @GetMapping
     fun getAll(): List<EventResponse> =
