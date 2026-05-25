@@ -20,8 +20,9 @@ class ProfileService(
         val p = Profile()
         p.id = userId
         if (!email.isNullOrBlank()) {
-            p.username = email.substringBefore("@")
-            p.displayName = email
+            val localPart = email.substringBefore("@")
+            p.username = localPart
+            p.displayName = localPart
         }
         p.createdAt = OffsetDateTime.now()
         p.updatedAt = OffsetDateTime.now()
