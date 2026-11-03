@@ -135,6 +135,37 @@ class UdiscImportPreviewHandlerTest {
     }
 
     @Test
+    fun `matches a real UDisc export to its event`() {
+        val muselunden = LocationEntity(name = "Muselunden", description = "", lat = 0.0, lon = 0.0)
+        val saturday = EventEntity(
+            date = OffsetDateTime.parse("2026-10-31T13:00:00+01:00"),
+            title = "Høstcupen",
+            description = "",
+            locationId = muselunden.id,
+            teamEvent = false,
+            rounds = 1,
+        )
+        whenever(eventRepository.findAll()).thenReturn(listOf(tuesday, saturday))
+        whenever(locationRepository.findAll()).thenReturn(listOf(ekeberg, muselunden))
+
+        val preview = handler.handle(
+            """
+            PlayerName,CourseName,LayoutName,StartDate,EndDate,Total,+/-,RoundRating,Hole1,Hole2,Hole3,Hole4,Hole5,Hole6,Hole7,Hole8,Hole9,Hole10,Hole11,Hole12
+            Par,Muselunden DiscGolfPark,Muselunden 12 hull (2022),2026-10-31 1411+0100,2026-10-31 1435+0100,36,,,3,3,3,3,3,3,3,3,3,3,3,3
+            Sebastian,Muselunden DiscGolfPark,Muselunden 12 hull (2022),2026-10-31 1411+0100,2026-10-31 1435+0100,29,-7,213,3,3,2,3,2,3,2,2,2,3,2,2
+            """.trimIndent(),
+        )
+
+        val card = preview.cards.single()
+        assertEquals(saturday.id, card.suggestedEventId)
+        assertEquals(LocationMatch.NAME, card.eventOptions.single().locationMatch)
+        assertEquals(12, card.pars.size)
+        assertEquals(seb.id, card.players.single().suggestedPlayerId, "\"Sebastian\" → Sebastian Dahl")
+        assertEquals(PlayerMatch.GUESS, card.players.single().match)
+        assertTrue(card.selected)
+    }
+
+    @Test
     fun `a file with no event-day rounds returns no cards`() {
         whenever(eventRepository.findAll()).thenReturn(emptyList())
 

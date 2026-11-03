@@ -20,6 +20,28 @@ class UdiscCsvParserTest {
         Ola,"Holmenkollen, Oslo",Long,2026-10-20 1200,2026-10-20 1400,33,+2,,3,3,3,3,3,3,3,3,4,5
     """.trimIndent()
 
+    // A real single-round export, verbatim. UDisc named the file
+    // "2026-10-31 1411+0100 - Muselunden DiscGolfPark - Muselunden 12 hull (2022) - UDisc.csv".
+    private val realExport = """
+        PlayerName,CourseName,LayoutName,StartDate,EndDate,Total,+/-,RoundRating,Hole1,Hole2,Hole3,Hole4,Hole5,Hole6,Hole7,Hole8,Hole9,Hole10,Hole11,Hole12
+        Par,Muselunden DiscGolfPark,Muselunden 12 hull (2022),2026-10-31 1411+0100,2026-10-31 1435+0100,36,,,3,3,3,3,3,3,3,3,3,3,3,3
+        Sebastian,Muselunden DiscGolfPark,Muselunden 12 hull (2022),2026-10-31 1411+0100,2026-10-31 1435+0100,29,-7,213,3,3,2,3,2,3,2,2,2,3,2,2
+    """.trimIndent()
+
+    @Test
+    fun `parses a real UDisc export`() {
+        val card = UdiscCsvParser.parse(realExport).single()
+
+        assertEquals("Muselunden DiscGolfPark", card.courseName)
+        assertEquals("Muselunden 12 hull (2022)", card.layoutName)
+        assertEquals(LocalDateTime.of(2026, 10, 31, 14, 11), card.startedAt)
+        assertEquals(List(12) { 3 }, card.pars)
+        val sebastian = card.players.single()
+        assertEquals("Sebastian", sebastian.name)
+        assertEquals(listOf(3, 3, 2, 3, 2, 3, 2, 2, 2, 3, 2, 2), sebastian.throws)
+        assertEquals(29, sebastian.throws.sumOf { it ?: 0 }, "matches the export's Total column")
+    }
+
     @Test
     fun `groups rows into one card per round`() {
         val cards = UdiscCsvParser.parse(newerExport)
@@ -99,6 +121,15 @@ class UdiscCsvParserTest {
     fun `rejects files that are not UDisc exports`() {
         val ex = assertThrows<IllegalArgumentException> { UdiscCsvParser.parse("name,email\nOla,ola@example.com") }
         assertTrue(ex.message!!.contains("UDisc"))
+    }
+
+    @Test
+    fun `honours the UTC offset UDisc writes after the time`() {
+        assertEquals(LocalDateTime.of(2026, 10, 31, 14, 11), UdiscCsvParser.parseDate("2026-10-31 1411+0100"))
+        assertEquals(LocalDateTime.of(2026, 7, 1, 14, 11), UdiscCsvParser.parseDate("2026-07-01 1411+0200"), "summer time")
+        assertEquals(LocalDateTime.of(2026, 10, 31, 14, 11), UdiscCsvParser.parseDate("2026-10-31 14:11+01:00"))
+        // A phone left on UTC: 23:30 UTC on 31 Oct is 00:30 on 1 Nov in Norway — a different event day.
+        assertEquals(LocalDateTime.of(2026, 11, 1, 0, 30), UdiscCsvParser.parseDate("2026-10-31 2330+0000"))
     }
 
     @Test

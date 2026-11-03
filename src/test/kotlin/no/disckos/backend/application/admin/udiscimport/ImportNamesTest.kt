@@ -17,6 +17,7 @@ class ImportNamesTest {
         assertEquals(1.0, ImportNames.courseSimilarity("Ekebergsletta Discgolfpark", "Ekeberg Discgolf Park"))
         assertEquals(1.0, ImportNames.courseSimilarity("Holmenkollen Disc Golf Park", "Holmenkollen"))
         assertEquals(1.0, ImportNames.courseSimilarity("Vollen DiscGolfPark", "Vollen Discgolf Park"))
+        assertEquals(1.0, ImportNames.courseSimilarity("Muselunden DiscGolfPark", "Muselunden"))
     }
 
     @Test

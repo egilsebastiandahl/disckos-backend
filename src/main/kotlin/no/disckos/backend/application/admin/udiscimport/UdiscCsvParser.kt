@@ -2,9 +2,8 @@ package no.disckos.backend.application.admin.udiscimport
 
 import java.time.DateTimeException
 import java.time.LocalDateTime
-import java.time.OffsetDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeParseException
+import java.time.ZoneOffset
 
 /** One UDisc scorecard: a single group playing one course/layout at one start time. */
 data class UdiscCard(
@@ -47,7 +46,10 @@ object UdiscCsvParser {
     private val DATE_HEADERS = listOf("startdate", "date", "starttime", "start")
     private val HOLE_HEADER = Regex("""hole(\d+)""")
 
-    private val ISO_LIKE = Regex("""^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):?(\d{2}))?""")
+    // "2026-10-31 1411+0100" (what UDisc writes today), "2026-10-31 14:11", "2026-10-31T13:11:00Z", ...
+    private val ISO_LIKE = Regex(
+        """^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):?(\d{2})(?::\d{2}(?:\.\d+)?)?\s*(Z|[+-]\d{2}:?\d{2})?)?""",
+    )
     private val DOTTED = Regex("""^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:,?\s+(\d{1,2})[:.](\d{2}))?""")
     private val US = Regex("""^(\d{1,2})/(\d{1,2})/(\d{4})(?:,?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?)?""")
 
@@ -118,15 +120,13 @@ object UdiscCsvParser {
     internal fun parseDate(raw: String): LocalDateTime? {
         val s = raw.trim()
         if (s.isEmpty()) return null
-        try {
-            // Full ISO timestamp with offset ("2026-10-28T17:04:00Z"): convert to Norwegian local time.
-            return OffsetDateTime.parse(s).atZoneSameInstant(OSLO).toLocalDateTime()
-        } catch (_: DateTimeParseException) {
-            // Fall through to the local-time formats below.
-        }
         return try {
             ISO_LIKE.find(s)?.let { m ->
-                localDateTime(m.int(1), m.int(2), m.int(3), m.intOrZero(4), m.intOrZero(5))
+                val local = localDateTime(m.int(1), m.int(2), m.int(3), m.intOrZero(4), m.intOrZero(5))
+                // With an offset, convert to Norwegian time so a phone set to another
+                // time zone doesn't move the round to another date.
+                val offset = m.groups[6]?.value?.let(ZoneOffset::of)
+                if (offset == null) local else local.atOffset(offset).atZoneSameInstant(OSLO).toLocalDateTime()
             } ?: DOTTED.find(s)?.let { m ->
                 localDateTime(m.int(3), m.int(2), m.int(1), m.intOrZero(4), m.intOrZero(5))
             } ?: US.find(s)?.let { m ->
