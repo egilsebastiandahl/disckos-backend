@@ -42,3 +42,18 @@ class UdiscCourseAliasEntity(
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     var createdAt: OffsetDateTime? = null
 )
+
+/** A UDisc scorecard (by [no.disckos.backend.application.admin.udiscimport.UdiscCard.key]) that has been imported. */
+@Entity
+@Table(name = "udisc_imported_cards")
+class UdiscImportedCardEntity(
+    @Id
+    @Column(name = "card_key", nullable = false)
+    var cardKey: String,
+
+    @Column(name = "round_id", nullable = false)
+    var roundId: UUID,
+
+    @Column(name = "imported_at", nullable = false, insertable = false, updatable = false)
+    var importedAt: OffsetDateTime? = null
+)

@@ -23,7 +23,7 @@ class GetPlayerRoundsHandler(
                 PlayerRoundSummaryResponse(
                     roundId = roundId,
                     eventId = first.eventId,
-                    eventDate = first.eventDate,
+                    playedAt = first.playedAt,
                     locationId = first.locationId,
                     locationName = first.locationName,
                     totalStrokes = totalStrokes,
@@ -32,7 +32,7 @@ class GetPlayerRoundsHandler(
                     holesPlayed = group.size
                 )
             }
-            .sortedByDescending { it.eventDate }
+            .sortedByDescending { it.playedAt }
             .take(limit.coerceAtLeast(1))
     }
 }

@@ -6,6 +6,7 @@ import no.disckos.backend.domain.PlayerScoreEntity
 import no.disckos.backend.domain.RoundEntity
 import no.disckos.backend.domain.ScoringFormat
 import no.disckos.backend.domain.UdiscCourseAliasEntity
+import no.disckos.backend.domain.UdiscImportedCardEntity
 import no.disckos.backend.domain.UdiscPlayerAliasEntity
 import no.disckos.backend.repository.EventRepository
 import no.disckos.backend.repository.HoleRepository
@@ -13,6 +14,7 @@ import no.disckos.backend.repository.PlayerRepository
 import no.disckos.backend.repository.PlayerScoreRepository
 import no.disckos.backend.repository.RoundRepository
 import no.disckos.backend.repository.UdiscCourseAliasRepository
+import no.disckos.backend.repository.UdiscImportedCardRepository
 import no.disckos.backend.repository.UdiscPlayerAliasRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
@@ -21,11 +23,14 @@ import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 /**
- * Writes one UDisc scorecard into an event round, in its own transaction.
+ * Writes one UDisc scorecard, in its own transaction, either into an event round or as a
+ * standalone round.
  *
- * A club round is usually several UDisc cards (one per group), so a card either creates
- * the round or appends its players to the existing one. Players already in the round are
- * skipped, which makes re-importing the same export harmless.
+ * A club round is usually several UDisc cards (one per group), so an event card either
+ * creates the round or appends its players to the existing one. A standalone card gets a
+ * round of its own. Imported cards are recorded in udisc_imported_cards: importing a card
+ * again appends any newly linked players to the same round, and a card can't be counted
+ * twice (once standalone, once in an event).
  */
 @Component
 class UdiscCardWriter(
@@ -36,37 +41,28 @@ class UdiscCardWriter(
     private val playerScoreRepository: PlayerScoreRepository,
     private val playerAliasRepository: UdiscPlayerAliasRepository,
     private val courseAliasRepository: UdiscCourseAliasRepository,
+    private val importedCardRepository: UdiscImportedCardRepository,
 ) {
+    /** Where a card's scores go: an existing round (append) or a round to create. */
+    private class Target(
+        val round: RoundEntity?,
+        val holes: List<HoleEntity>,
+        /** Location the UDisc course should be remembered as. */
+        val locationId: UUID?,
+        val newRound: () -> RoundEntity,
+    )
+
     @Transactional
     fun write(card: ResolvedCard): UdiscCardResult {
-        val event = eventRepository.findById(card.eventId)
-            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Fant ikke eventet.") }
-        if (event.teamEvent) {
-            throw badRequest("«${event.title}» er et lag-event. UDisc-import støtter foreløpig bare individuelle runder.")
-        }
+        val previous = importedCardRepository.findById(card.key).orElse(null)
+        val target = if (card.eventId != null) eventTarget(card, card.eventId, previous) else standaloneTarget(card, previous)
 
         val playerIds = card.players.map { it.playerId }.toSet()
         val missing = playerIds - playerRepository.findAllById(playerIds).mapNotNull { it.id }.toSet()
         if (missing.isNotEmpty()) throw badRequest("Ukjent spiller-id: ${missing.joinToString()}")
 
-        val rounds = roundRepository.findByEventIdOrderByCreatedAtAsc(event.id)
-        val existingRound = rounds.getOrNull(card.roundOrdinal - 1)
-        if (existingRound == null && card.roundOrdinal != rounds.size + 1) {
-            throw badRequest("Runde ${card.roundOrdinal} finnes ikke ennå – importer runde ${rounds.size + 1} først.")
-        }
-
-        var existingHoles: List<HoleEntity> = emptyList()
-        var alreadyInRound: Set<UUID> = emptySet()
-        if (existingRound != null) {
-            if (existingRound.eventType != EventType.individual) throw badRequest("Runde ${card.roundOrdinal} er en lagrunde.")
-            existingHoles = holeRepository.findByRoundId(existingRound.id).sortedBy { it.holeNumber }
-            if (existingHoles.size != card.pars.size) {
-                throw badRequest(
-                    "Runde ${card.roundOrdinal} har ${existingHoles.size} hull, men UDisc-kortet har ${card.pars.size}.",
-                )
-            }
-            alreadyInRound = playerScoreRepository.findByHoleIdIn(existingHoles.map { it.id }).map { it.playerId }.toSet()
-        }
+        val alreadyInRound = if (target.round == null) emptySet()
+        else playerScoreRepository.findByHoleIdIn(target.holes.map { it.id }).map { it.playerId }.toSet()
 
         val toImport = mutableListOf<ResolvedPlayer>()
         val skipped = mutableListOf<String>()
@@ -81,24 +77,19 @@ class UdiscCardWriter(
         }
 
         // Remember the admin's decisions, even when everyone was already imported.
-        event.locationId?.let { rememberCourse(card.courseName, it) }
+        target.locationId?.let { rememberCourse(card.courseName, it) }
         card.players.forEach { rememberPlayer(it.udiscName, it.playerId) }
 
         if (toImport.isEmpty()) {
-            return result(card, roundId = existingRound?.id, created = false, imported = emptyList(), skipped = skipped)
+            return result(card, roundId = target.round?.id, created = false, imported = emptyList(), skipped = skipped)
         }
 
-        val roundId: UUID
-        val holes: List<HoleEntity>
-        if (existingRound != null) {
-            roundId = existingRound.id
-            holes = existingHoles
+        val round = target.round ?: roundRepository.save(target.newRound())
+        val holes = if (target.round != null) {
+            target.holes
         } else {
-            roundId = roundRepository.save(
-                RoundEntity(eventId = event.id, eventType = EventType.individual, scoringFormat = ScoringFormat.stroke),
-            ).id
-            holes = holeRepository.saveAll(
-                card.pars.mapIndexed { i, par -> HoleEntity(roundId = roundId, holeNumber = i + 1, par = par) },
+            holeRepository.saveAll(
+                card.pars.mapIndexed { i, par -> HoleEntity(roundId = round.id, holeNumber = i + 1, par = par) },
             ).sortedBy { it.holeNumber }
         }
 
@@ -109,8 +100,78 @@ class UdiscCardWriter(
                 }
             },
         )
+        if (previous == null) importedCardRepository.save(UdiscImportedCardEntity(cardKey = card.key, roundId = round.id))
 
-        return result(card, roundId, created = existingRound == null, imported = toImport.map { it.udiscName }, skipped = skipped)
+        return result(card, round.id, created = target.round == null, imported = toImport.map { it.udiscName }, skipped = skipped)
+    }
+
+    private fun eventTarget(card: ResolvedCard, eventId: UUID, previous: UdiscImportedCardEntity?): Target {
+        val event = eventRepository.findById(eventId)
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Fant ikke eventet.") }
+        if (event.teamEvent) {
+            throw badRequest("«${event.title}» er et lag-event. UDisc-import støtter foreløpig bare individuelle runder.")
+        }
+
+        val ordinal = card.roundOrdinal ?: throw badRequest("Kortet mangler runde.")
+        val rounds = roundRepository.findByEventIdOrderByCreatedAtAsc(event.id)
+        val existingRound = rounds.getOrNull(ordinal - 1)
+        if (existingRound == null && ordinal != rounds.size + 1) {
+            throw badRequest("Runde $ordinal finnes ikke ennå – importer runde ${rounds.size + 1} først.")
+        }
+        if (previous != null && previous.roundId != existingRound?.id) {
+            throw badRequest(alreadyImportedElsewhere(previous))
+        }
+
+        val holes = existingRound?.let { holesOf(it, ordinal, card.pars.size) }.orEmpty()
+        return Target(existingRound, holes, event.locationId) {
+            RoundEntity(eventId = event.id, eventType = EventType.individual, scoringFormat = ScoringFormat.stroke)
+        }
+    }
+
+    private fun standaloneTarget(card: ResolvedCard, previous: UdiscImportedCardEntity?): Target {
+        val locationId = card.locationId ?: throw badRequest("Kortet mangler lokasjon.")
+        val playedAt = card.playedAt ?: throw badRequest("Kortet mangler tidspunkt.")
+
+        if (previous != null) {
+            val round = roundRepository.findById(previous.roundId).orElse(null)
+            if (round != null) {
+                if (round.eventId != null) throw badRequest(alreadyImportedElsewhere(previous))
+                // Imported before: add any newly linked players to the same round.
+                return Target(round, holesOf(round, null, card.pars.size), round.locationId ?: locationId) {
+                    error("existing round is reused")
+                }
+            }
+        }
+
+        return Target(null, emptyList(), locationId) {
+            RoundEntity(
+                eventId = null,
+                eventType = EventType.individual,
+                scoringFormat = ScoringFormat.stroke,
+                locationId = locationId,
+                playedAt = playedAt,
+            )
+        }
+    }
+
+    private fun holesOf(round: RoundEntity, ordinal: Int?, expected: Int): List<HoleEntity> {
+        if (round.eventType != EventType.individual) throw badRequest("Runden er en lagrunde.")
+        val holes = holeRepository.findByRoundId(round.id).sortedBy { it.holeNumber }
+        if (holes.size != expected) {
+            val name = ordinal?.let { "Runde $it" } ?: "Runden"
+            throw badRequest("$name har ${holes.size} hull, men UDisc-kortet har $expected.")
+        }
+        return holes
+    }
+
+    private fun alreadyImportedElsewhere(previous: UdiscImportedCardEntity): String {
+        val round = roundRepository.findById(previous.roundId).orElse(null)
+        val eventTitle = round?.eventId?.let { eventRepository.findById(it).orElse(null)?.title }
+        return if (eventTitle != null) {
+            "Kortet er allerede importert til «$eventTitle». Slett den runden først hvis det skal flyttes."
+        } else {
+            "Kortet er allerede importert som frittstående runde. Slett den under «Frittstående runder» først hvis det skal flyttes."
+        }
     }
 
     private fun rememberPlayer(udiscName: String, playerId: UUID) {

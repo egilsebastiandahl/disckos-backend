@@ -17,9 +17,15 @@ data class UdiscPreviewCardResponse(
     val startedAt: LocalDateTime?,
     val pars: List<Int>,
     val players: List<UdiscPreviewPlayerResponse>,
+    /** Events on the card's date, best match first; empty when there was none. */
     val eventOptions: List<UdiscEventOptionResponse>,
-    val suggestedEventId: UUID,
+    /** Null = suggest a standalone round. */
+    val suggestedEventId: UUID?,
     val suggestedRoundOrdinal: Int,
+    val suggestedLocationId: UUID?,
+    /** alias | name | none */
+    val courseMatch: String,
+    val importedRound: UdiscImportedRoundResponse?,
     val selected: Boolean,
     val warnings: List<String>,
 )
@@ -51,15 +57,22 @@ data class UdiscRoundOptionResponse(
     val playerIds: List<UUID>,
 )
 
+data class UdiscImportedRoundResponse(
+    val roundId: UUID,
+    /** Null when the card was imported as a standalone round. */
+    val eventId: UUID?,
+    val playerIds: List<UUID>,
+)
+
 data class UdiscCommitResponse(
     val results: List<UdiscCardResultResponse>,
 )
 
 data class UdiscCardResultResponse(
     val key: String,
-    val eventId: UUID,
+    val eventId: UUID?,
     val roundId: UUID?,
-    val roundOrdinal: Int,
+    val roundOrdinal: Int?,
     val createdRound: Boolean,
     val importedPlayers: List<String>,
     val skippedPlayers: List<String>,

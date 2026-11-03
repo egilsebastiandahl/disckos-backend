@@ -1,11 +1,14 @@
 package no.disckos.backend.application.admin.udiscimport
 
+import no.disckos.backend.domain.LocationEntity
 import no.disckos.backend.domain.Player
+import no.disckos.backend.repository.LocationRepository
 import no.disckos.backend.repository.PlayerRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ResponseStatusException
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.util.UUID
 
 /**
@@ -14,25 +17,31 @@ import java.util.UUID
  * Deliberately *not* @Transactional: each card is written by [UdiscCardWriter] in its own
  * transaction, so one bad card (e.g. hole count mismatch) doesn't block the rest, and new
  * rounds get distinct created_at values (round order is created_at order, and Postgres'
- * now() is fixed for the whole transaction). Re-running a commit is safe: players that
- * already have scores in the target round are skipped.
+ * now() is fixed for the whole transaction). Re-running a commit is safe: imported cards
+ * are recorded, and players already in the target round are skipped.
  */
 @Component
 class UdiscImportCommitHandler(
     private val cardWriter: UdiscCardWriter,
     private val playerRepository: PlayerRepository,
+    private val locationRepository: LocationRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+    private val oslo: ZoneId = ZoneId.of("Europe/Oslo")
 
     fun handle(input: UdiscCommitInput): List<UdiscCardResult> {
         input.cards.forEach(::validate)
 
         val newPlayerIds = createRequestedPlayers(input)
+        val newLocationIds = createRequestedLocations(input)
         val resolved = input.cards.map { card ->
             ResolvedCard(
                 key = card.key,
                 eventId = card.eventId,
                 roundOrdinal = card.roundOrdinal,
+                locationId = if (card.eventId != null) null
+                else card.locationId ?: newLocationIds.getValue(ImportNames.key(card.newLocationName!!)),
+                playedAt = card.startedAt?.atZone(oslo)?.toOffsetDateTime(),
                 courseName = card.courseName,
                 pars = card.pars,
                 players = card.players.map { p ->
@@ -45,10 +54,10 @@ class UdiscImportCommitHandler(
             )
         }
 
-        // Lower round numbers first, so "round 2 (new)" is created after "round 1 (new)".
+        // Event cards in round order, so "round 2 (new)" is created after "round 1 (new)".
         val results = arrayOfNulls<UdiscCardResult>(resolved.size)
         resolved.withIndex()
-            .sortedWith(compareBy({ it.value.eventId }, { it.value.roundOrdinal }))
+            .sortedWith(compareBy({ it.value.eventId == null }, { it.value.eventId }, { it.value.roundOrdinal }))
             .forEach { (i, card) -> results[i] = writeCard(card) }
         return results.map { it!! }
     }
@@ -68,6 +77,14 @@ class UdiscImportCommitHandler(
     private fun validate(card: UdiscCommitCard) {
         require(card.pars.isNotEmpty()) { "Kortet ${card.key} har ingen hull." }
         require(card.pars.all { it >= 1 }) { "Kortet ${card.key} har ugyldig par." }
+        if (card.eventId != null) {
+            require((card.roundOrdinal ?: 0) >= 1) { "Kortet ${card.key} mangler runde." }
+        } else {
+            require(card.startedAt != null) { "Kortet ${card.key} mangler tidspunkt." }
+            require(card.locationId != null || !card.newLocationName.isNullOrBlank()) {
+                "Kortet ${card.key} mangler lokasjon."
+            }
+        }
         card.players.forEach { p ->
             require(p.playerId != null || !p.newPlayerName.isNullOrBlank()) {
                 "«${p.udiscName}» er ikke koblet til en spiller."
@@ -108,12 +125,38 @@ class UdiscImportCommitHandler(
             key to id
         }
     }
+
+    /**
+     * Same idea for courses that aren't Disckos locations yet. They're created without
+     * coordinates (0, 0, which the admin location page lists as "uten koordinater").
+     */
+    private fun createRequestedLocations(input: UdiscCommitInput): Map<String, UUID> {
+        val requested = input.cards
+            .filter { it.eventId == null && it.locationId == null }
+            .mapNotNull { it.newLocationName?.trim()?.takeIf(String::isNotEmpty) }
+            .distinctBy(ImportNames::key)
+        if (requested.isEmpty()) return emptyMap()
+
+        val existingByKey = locationRepository.findAll().associateBy { ImportNames.key(it.name) }
+        return requested.associate { name ->
+            val key = ImportNames.key(name)
+            val id = existingByKey[key]?.id ?: locationRepository.save(
+                LocationEntity(name = name, description = "Opprettet fra UDisc-import", lat = 0.0, lon = 0.0),
+            ).id
+            key to id
+        }
+    }
 }
 
 data class ResolvedCard(
     val key: String,
-    val eventId: UUID,
-    val roundOrdinal: Int,
+    /** Null = standalone round. */
+    val eventId: UUID?,
+    val roundOrdinal: Int?,
+    /** Standalone rounds only. */
+    val locationId: UUID?,
+    /** Standalone rounds only. */
+    val playedAt: OffsetDateTime?,
     val courseName: String,
     val pars: List<Int>,
     val players: List<ResolvedPlayer>,

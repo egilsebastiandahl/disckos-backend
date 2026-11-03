@@ -4,8 +4,8 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
-import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
+import java.time.LocalDateTime
 import java.util.UUID
 
 /** A full UDisc export with several years of rounds is typically well under 1 MB. */
@@ -27,11 +27,20 @@ data class UdiscCommitCardRequest(
     @field:NotBlank
     val key: String,
 
-    @field:NotNull
-    val eventId: UUID,
+    /** Null = import as a standalone round (not part of an event). */
+    val eventId: UUID? = null,
 
+    /** Event cards: 1-based round within the event. */
     @field:Min(1)
-    val roundOrdinal: Int,
+    val roundOrdinal: Int? = null,
+
+    /** Standalone cards: an existing location, or null together with [newLocationName]. */
+    val locationId: UUID? = null,
+
+    val newLocationName: String? = null,
+
+    /** Standalone cards: when the round was played, Norwegian local time. */
+    val startedAt: LocalDateTime? = null,
 
     @field:NotBlank
     val courseName: String,

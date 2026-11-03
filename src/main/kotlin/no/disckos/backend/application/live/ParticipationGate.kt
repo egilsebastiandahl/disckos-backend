@@ -25,7 +25,9 @@ class ParticipationGate(
         val round = roundRepository.findById(roundId)
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found") }
 
-        if (eventSignupRepository.existsByEventIdAndProfileId(round.eventId, profileId)) {
+        // Standalone rounds have no event, so only the "already in the round" rule applies.
+        val eventId = round.eventId
+        if (eventId != null && eventSignupRepository.existsByEventIdAndProfileId(eventId, profileId)) {
             return
         }
 

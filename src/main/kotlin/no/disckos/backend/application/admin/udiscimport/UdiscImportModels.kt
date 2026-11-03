@@ -16,14 +16,16 @@ enum class LocationMatch(val rank: Int) {
     OTHER_LOCATION(0),
 }
 
+/** How a standalone round's location was suggested. */
+enum class CourseMatch { ALIAS, NAME, NONE }
+
 enum class PlayerMatch { ALIAS, EXACT, GUESS, NONE }
 
 // ---- Preview -------------------------------------------------------------------------
 
 data class UdiscPreview(
-    /** Number of scorecards found in the file, including those that matched no event. */
     val cardsInFile: Int,
-    /** Only cards played on the same day as a Disckos event, newest first. */
+    /** Every scorecard in the file, newest first. */
     val cards: List<UdiscPreviewCard>,
 )
 
@@ -35,13 +37,20 @@ data class UdiscPreviewCard(
     /** Par per hole; holes without a par in the export default to 3 (see [warnings]). */
     val pars: List<Int>,
     val players: List<UdiscPreviewPlayer>,
-    /** Every event on the card's date, best match first. */
+    /** Events on the card's date, best match first. Empty when there was no event that day. */
     val eventOptions: List<UdiscEventOption>,
-    val suggestedEventId: UUID,
+    /** The event this card most likely belongs to; null = suggest a standalone round. */
+    val suggestedEventId: UUID?,
+    /** Round within [suggestedEventId]; 1 when standalone. */
     val suggestedRoundOrdinal: Int,
+    /** Location for a standalone round; null when no Disckos location matches the course. */
+    val suggestedLocationId: UUID?,
+    val courseMatch: CourseMatch,
+    /** Where this card was imported before, if it was. */
+    val importedRound: UdiscImportedRound?,
     /** Whether the card should be ticked for import by default. */
     val selected: Boolean,
-    /** Card-level notes that don't depend on which event the admin picks. */
+    /** Card-level notes that don't depend on what the admin picks. */
     val warnings: List<String>,
 )
 
@@ -72,15 +81,28 @@ data class UdiscRoundOption(
     val playerIds: Set<UUID>,
 )
 
+data class UdiscImportedRound(
+    val roundId: UUID,
+    /** Null when the card was imported as a standalone round. */
+    val eventId: UUID?,
+    val playerIds: Set<UUID>,
+)
+
 // ---- Commit --------------------------------------------------------------------------
 
 data class UdiscCommitInput(val cards: List<UdiscCommitCard>)
 
 data class UdiscCommitCard(
     val key: String,
-    val eventId: UUID,
-    /** 1-based round within the event. One past the last existing round creates a new round. */
-    val roundOrdinal: Int,
+    /** Null = import as a standalone round. */
+    val eventId: UUID?,
+    /** Event cards: 1-based round within the event; one past the last existing round creates it. */
+    val roundOrdinal: Int?,
+    /** Standalone cards: an existing location, or null together with [newLocationName] to create one. */
+    val locationId: UUID?,
+    val newLocationName: String?,
+    /** Standalone cards: when the round was played (Norwegian local time). */
+    val startedAt: LocalDateTime?,
     val courseName: String,
     val pars: List<Int>,
     val players: List<UdiscCommitPlayer>,
@@ -96,9 +118,11 @@ data class UdiscCommitPlayer(
 
 data class UdiscCardResult(
     val key: String,
-    val eventId: UUID,
+    /** Null for standalone rounds. */
+    val eventId: UUID?,
     val roundId: UUID?,
-    val roundOrdinal: Int,
+    /** Null for standalone rounds. */
+    val roundOrdinal: Int?,
     val createdRound: Boolean,
     val importedPlayers: List<String>,
     val skippedPlayers: List<String>,

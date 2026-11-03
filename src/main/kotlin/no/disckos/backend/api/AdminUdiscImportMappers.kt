@@ -3,6 +3,7 @@ package no.disckos.backend.api
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscCardResultResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscCommitRequest
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscEventOptionResponse
+import no.disckos.backend.api.dto.admin.udiscimport.UdiscImportedRoundResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewCardResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewPlayerResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewResponse
@@ -22,6 +23,9 @@ fun UdiscCommitRequest.toInput(): UdiscCommitInput =
                 key = card.key,
                 eventId = card.eventId,
                 roundOrdinal = card.roundOrdinal,
+                locationId = card.locationId,
+                newLocationName = card.newLocationName,
+                startedAt = card.startedAt,
                 courseName = card.courseName,
                 pars = card.pars,
                 players = card.players.map { p ->
@@ -57,6 +61,11 @@ private fun UdiscPreviewCard.toResponse() =
         eventOptions = eventOptions.map { it.toResponse() },
         suggestedEventId = suggestedEventId,
         suggestedRoundOrdinal = suggestedRoundOrdinal,
+        suggestedLocationId = suggestedLocationId,
+        courseMatch = courseMatch.name.lowercase(),
+        importedRound = importedRound?.let {
+            UdiscImportedRoundResponse(roundId = it.roundId, eventId = it.eventId, playerIds = it.playerIds.toList())
+        },
         selected = selected,
         warnings = warnings,
     )

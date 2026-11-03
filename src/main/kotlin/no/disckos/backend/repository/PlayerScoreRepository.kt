@@ -26,16 +26,19 @@ interface PlayerScoreRepository : JpaRepository<PlayerScoreEntity, UUID> {
         @Param("playerId") playerId: UUID
     ): Boolean
 
+    // Event rounds take date and location from the event; standalone rounds
+    // (event_id null) carry their own — see migration 015.
     @Query(
         """
         SELECT new no.disckos.backend.application.player.PlayerScoreRow(
-            ps.throws, h.par, h.roundId, r.eventId, e.date, e.locationId, l.name
+            ps.throws, h.par, h.roundId, r.eventId,
+            COALESCE(r.playedAt, e.date), COALESCE(r.locationId, e.locationId), l.name
         )
         FROM PlayerScoreEntity ps
         JOIN HoleEntity h ON h.id = ps.holeId
         JOIN RoundEntity r ON r.id = h.roundId
-        JOIN EventEntity e ON e.id = r.eventId
-        LEFT JOIN LocationEntity l ON l.id = e.locationId
+        LEFT JOIN EventEntity e ON e.id = r.eventId
+        LEFT JOIN LocationEntity l ON l.id = COALESCE(r.locationId, e.locationId)
         WHERE ps.playerId = :playerId
         """
     )

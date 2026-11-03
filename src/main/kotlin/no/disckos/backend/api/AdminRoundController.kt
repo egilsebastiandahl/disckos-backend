@@ -2,6 +2,8 @@ package no.disckos.backend.api
 
 import jakarta.validation.Valid
 import no.disckos.backend.api.dto.admin.round.AdminRoundResponse
+import no.disckos.backend.api.dto.admin.round.AdminStandaloneRoundPlayerResponse
+import no.disckos.backend.api.dto.admin.round.AdminStandaloneRoundResponse
 import no.disckos.backend.api.dto.admin.round.CreateIndividualRoundRequest
 import no.disckos.backend.api.dto.admin.round.CreateTeamRoundRequest
 import no.disckos.backend.api.dto.admin.round.UpdateHoleRequest
@@ -15,6 +17,7 @@ import no.disckos.backend.application.admin.round.CreateTeamRoundHandler
 import no.disckos.backend.application.admin.round.DeleteRoundHandler
 import no.disckos.backend.application.admin.round.GetRoundHandler
 import no.disckos.backend.application.admin.round.GetRoundsByEventHandler
+import no.disckos.backend.application.admin.round.GetStandaloneRoundsHandler
 import no.disckos.backend.application.admin.round.UpdateHoleHandler
 import no.disckos.backend.application.admin.round.UpdateIndividualRoundHandler
 import no.disckos.backend.application.admin.round.UpdateTeamRoundHandler
@@ -46,6 +49,7 @@ class AdminRoundController(
     private val deleteRoundHandler: DeleteRoundHandler,
     private val getRoundsByEventHandler: GetRoundsByEventHandler,
     private val getRoundHandler: GetRoundHandler,
+    private val getStandaloneRoundsHandler: GetStandaloneRoundsHandler,
     private val updateHoleHandler: UpdateHoleHandler,
     private val updatePlayerScoreForHoleHandler: UpdatePlayerScoreForHoleHandler,
     private val updateTeamScoreForHoleHandler: UpdateTeamScoreForHoleHandler,
@@ -78,6 +82,22 @@ class AdminRoundController(
     @GetMapping
     fun getByEvent(@RequestParam eventId: UUID): List<AdminRoundResponse> =
         getRoundsByEventHandler.handle(eventId).map { it.toAdminResponse() }
+
+    /** Rounds that aren't part of an event, e.g. casual rounds imported from UDisc. */
+    @GetMapping("/standalone")
+    fun getStandalone(): List<AdminStandaloneRoundResponse> =
+        getStandaloneRoundsHandler.handle().map { r ->
+            AdminStandaloneRoundResponse(
+                roundId = r.roundId,
+                playedAt = r.playedAt,
+                locationId = r.locationId,
+                locationName = r.locationName,
+                pars = r.pars,
+                players = r.players.map { p ->
+                    AdminStandaloneRoundPlayerResponse(p.playerId, p.name, p.totalStrokes, p.holesPlayed)
+                },
+            )
+        }
 
     @GetMapping("/{id}")
     fun getById(@PathVariable id: UUID): AdminRoundResponse =

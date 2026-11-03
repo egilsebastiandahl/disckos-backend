@@ -6,7 +6,8 @@ import java.util.UUID
 
 data class RoundResponse(
     val id: UUID,
-    val eventId: UUID,
+    /** Null for standalone rounds. */
+    val eventId: UUID?,
     val eventType: EventType,
     val scoringFormat: ScoringFormat,
     val holes: List<HoleResponse>

@@ -5,8 +5,10 @@ import java.util.UUID
 
 data class PlayerRoundSummaryResponse(
     val roundId: UUID,
-    val eventId: UUID,
-    val eventDate: OffsetDateTime,
+    /** Null for standalone rounds (not part of an event). */
+    val eventId: UUID?,
+    /** The event's date, or a standalone round's own start time. */
+    val playedAt: OffsetDateTime,
     val locationId: UUID?,
     val locationName: String?,
     val totalStrokes: Int,

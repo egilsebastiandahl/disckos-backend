@@ -7,4 +7,5 @@ import java.util.UUID
 interface RoundRepository : JpaRepository<RoundEntity, UUID> {
     fun findByEventId(eventId: UUID): List<RoundEntity>
     fun findByEventIdOrderByCreatedAtAsc(eventId: UUID): List<RoundEntity>
+    fun findByEventIdIsNullOrderByPlayedAtDesc(): List<RoundEntity>
 }
