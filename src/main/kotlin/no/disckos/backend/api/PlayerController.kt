@@ -1,11 +1,14 @@
 package no.disckos.backend.api
 
+import no.disckos.backend.api.dto.player.HeadToHeadResponse
+import no.disckos.backend.api.dto.player.HeadToHeadRoundResponse
 import no.disckos.backend.api.dto.player.PlayerResponse
 import no.disckos.backend.api.dto.player.PlayerRoundSummaryResponse
 import no.disckos.backend.api.dto.player.PlayerStatsByLocationResponse
 import no.disckos.backend.api.dto.player.PlayerStatsResponse
 import no.disckos.backend.api.dto.player.toResponse
 import no.disckos.backend.api.dto.rank.PlayerRanksResponse
+import no.disckos.backend.application.player.GetHeadToHeadHandler
 import no.disckos.backend.application.player.GetPlayerHandler
 import no.disckos.backend.application.player.GetPlayerRoundsHandler
 import no.disckos.backend.application.player.GetPlayerStatsByLocationHandler
@@ -30,7 +33,31 @@ class PlayerController(
     private val getPlayerStatsByLocationHandler: GetPlayerStatsByLocationHandler,
     private val getPlayerRoundsHandler: GetPlayerRoundsHandler,
     private val getPlayerRanksHandler: GetPlayerRanksHandler,
+    private val getHeadToHeadHandler: GetHeadToHeadHandler,
 ) {
+    @GetMapping("/{id}/head-to-head/{opponentId}")
+    fun getHeadToHead(@PathVariable id: UUID, @PathVariable opponentId: UUID): HeadToHeadResponse {
+        val (result, locations) = getHeadToHeadHandler.handle(id, opponentId)
+        return HeadToHeadResponse(
+            playerId = id,
+            opponentId = opponentId,
+            wins = result.wins,
+            losses = result.losses,
+            ties = result.ties,
+            rounds = result.rounds.map {
+                HeadToHeadRoundResponse(
+                    roundId = it.roundId,
+                    playedAt = it.playedAt,
+                    locationId = it.locationId,
+                    locationName = locations[it.locationId]?.name,
+                    holes = it.holes,
+                    toPar = it.toPar,
+                    opponentToPar = it.opponentToPar
+                )
+            }
+        )
+    }
+
     @GetMapping("/{id}/ranks")
     fun getPlayerRanks(@PathVariable id: UUID): PlayerRanksResponse =
         PlayerRanksResponse(
