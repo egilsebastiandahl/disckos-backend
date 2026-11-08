@@ -4,5 +4,6 @@ data class CreateLocationInput(
     val name: String,
     val description: String,
     val lat: Double,
-    val lon: Double
+    val lon: Double,
+    val rankOffset: Double = 0.0
 )

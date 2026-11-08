@@ -18,7 +18,8 @@ class CreateLocationHandler(
                 name = cmd.name.trim(),
                 description = cmd.description.trim(),
                 lat = cmd.lat,
-                lon = cmd.lon
+                lon = cmd.lon,
+                rankOffset = cmd.rankOffset
             )
         )
 }

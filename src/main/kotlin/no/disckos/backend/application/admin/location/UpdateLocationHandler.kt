@@ -21,6 +21,7 @@ class UpdateLocationHandler(
         cmd.description?.let { location.description = it.trim() }
         cmd.lat?.let { location.lat = it }
         cmd.lon?.let { location.lon = it }
+        cmd.rankOffset?.let { location.rankOffset = it }
 
         return locationRepository.save(location)
     }

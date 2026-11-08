@@ -5,11 +5,13 @@ import no.disckos.backend.api.dto.player.PlayerRoundSummaryResponse
 import no.disckos.backend.api.dto.player.PlayerStatsByLocationResponse
 import no.disckos.backend.api.dto.player.PlayerStatsResponse
 import no.disckos.backend.api.dto.player.toResponse
+import no.disckos.backend.api.dto.rank.PlayerRanksResponse
 import no.disckos.backend.application.player.GetPlayerHandler
 import no.disckos.backend.application.player.GetPlayerRoundsHandler
 import no.disckos.backend.application.player.GetPlayerStatsByLocationHandler
 import no.disckos.backend.application.player.GetPlayerStatsHandler
 import no.disckos.backend.application.player.GetPlayersHandler
+import no.disckos.backend.application.rank.GetPlayerRanksHandler
 import no.disckos.backend.repository.ProfileRepository
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -27,7 +29,15 @@ class PlayerController(
     private val getPlayerStatsHandler: GetPlayerStatsHandler,
     private val getPlayerStatsByLocationHandler: GetPlayerStatsByLocationHandler,
     private val getPlayerRoundsHandler: GetPlayerRoundsHandler,
+    private val getPlayerRanksHandler: GetPlayerRanksHandler,
 ) {
+    @GetMapping("/{id}/ranks")
+    fun getPlayerRanks(@PathVariable id: UUID): PlayerRanksResponse =
+        PlayerRanksResponse(
+            playerId = id,
+            courses = getPlayerRanksHandler.handle(id).map { it.rank.toResponse(it.location) }
+        )
+
     // Gets all the players
     @GetMapping
     fun getAllPlayers(): List<PlayerResponse> =

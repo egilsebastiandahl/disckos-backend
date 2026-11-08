@@ -12,7 +12,8 @@ fun CreateLocationRequest.toInput(): CreateLocationInput =
         name = name,
         description = description,
         lat = lat,
-        lon = lon
+        lon = lon,
+        rankOffset = rankOffset ?: 0.0
     )
 
 fun UpdateLocationRequest.toInput(): UpdateLocationInput =
@@ -20,7 +21,8 @@ fun UpdateLocationRequest.toInput(): UpdateLocationInput =
         name = name,
         description = description,
         lat = lat,
-        lon = lon
+        lon = lon,
+        rankOffset = rankOffset
     )
 
 fun LocationEntity.toAdminResponse(): AdminLocationResponse =
@@ -29,5 +31,6 @@ fun LocationEntity.toAdminResponse(): AdminLocationResponse =
         name = name,
         description = description,
         lat = lat,
-        lon = lon
+        lon = lon,
+        rankOffset = rankOffset
     )

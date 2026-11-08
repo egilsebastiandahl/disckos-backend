@@ -26,6 +26,13 @@ class LocationEntity(
     @Column(name = "lon", nullable = false)
     var lon: Double,
 
+    /**
+     * Course difficulty adjustment for ranks, in strokes per 18 holes, added to a player's
+     * average before it's mapped onto the ladder. Positive = easy course. See migration 016.
+     */
+    @Column(name = "rank_offset", nullable = false)
+    var rankOffset: Double = 0.0,
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     var createdAt: OffsetDateTime? = null
 )

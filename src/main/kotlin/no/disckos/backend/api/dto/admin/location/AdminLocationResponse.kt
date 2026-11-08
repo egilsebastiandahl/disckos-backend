@@ -8,4 +8,6 @@ data class AdminLocationResponse(
     val description: String,
     val lat: Double,
     val lon: Double
+,
+    val rankOffset: Double
 )

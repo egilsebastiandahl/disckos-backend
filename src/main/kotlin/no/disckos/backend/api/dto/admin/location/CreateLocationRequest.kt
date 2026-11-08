@@ -14,5 +14,8 @@ data class CreateLocationRequest(
     val lat: Double,
 
     @field:NotNull
-    val lon: Double
+    val lon: Double,
+
+    /** Course difficulty adjustment for ranks, strokes per 18 holes. Defaults to 0. */
+    val rankOffset: Double? = null
 )
