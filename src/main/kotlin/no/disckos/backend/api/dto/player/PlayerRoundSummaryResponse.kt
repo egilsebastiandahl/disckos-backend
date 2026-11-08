@@ -14,5 +14,8 @@ data class PlayerRoundSummaryResponse(
     val totalStrokes: Int,
     val totalPar: Int,
     val toPar: Int,
-    val holesPlayed: Int
+    /** Holes this player has a score on... */
+    val holesPlayed: Int,
+    /** ...out of the holes in the round. Equal means the player finished the round. */
+    val roundHoles: Int
 )

@@ -13,10 +13,16 @@ data class PlayerStatsResponse(
     val avgToParPerHole: BigDecimal,
     val avgRoundScore: BigDecimal,
     val avgRoundToPar: BigDecimal,
+    /**
+     * Best and worst rounds are picked by score to par, among rounds the player finished
+     * (a score on every hole). Score, to-par and course always describe the same round.
+     */
     val bestRoundScore: Int?,
     val worstRoundScore: Int?,
     val bestRoundToPar: Int?,
     val worstRoundToPar: Int?,
+    val bestRoundLocationName: String?,
+    val worstRoundLocationName: String?,
     val aceCount: Int,
     val eagleCount: Int,
     val birdieCount: Int,

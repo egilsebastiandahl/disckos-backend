@@ -1,6 +1,7 @@
 package no.disckos.backend.application.player
 
 import no.disckos.backend.api.dto.player.PlayerStatsResponse
+import no.disckos.backend.repository.HoleRepository
 import no.disckos.backend.repository.PlayerScoreRepository
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -9,7 +10,8 @@ import java.util.UUID
 
 @Component
 class GetPlayerStatsHandler(
-    private val playerScoreRepository: PlayerScoreRepository
+    private val playerScoreRepository: PlayerScoreRepository,
+    private val holeRepository: HoleRepository
 ) {
     @Transactional(readOnly = true)
     fun handle(playerId: UUID): PlayerStatsResponse {
@@ -30,6 +32,8 @@ class GetPlayerStatsHandler(
                 worstRoundScore = null,
                 bestRoundToPar = null,
                 worstRoundToPar = null,
+                bestRoundLocationName = null,
+                worstRoundLocationName = null,
                 aceCount = 0,
                 eagleCount = 0,
                 birdieCount = 0,
@@ -41,7 +45,9 @@ class GetPlayerStatsHandler(
             )
         }
 
-        val rounds = PlayerStatsAggregator.roundTotals(rows)
+        val rounds = PlayerStatsAggregator.roundTotals(rows, PlayerStatsAggregator.roundHoles(holeRepository, rows))
+        val best = PlayerStatsAggregator.bestRound(rounds)
+        val worst = PlayerStatsAggregator.worstRound(rounds)
         val totalStrokes = rows.sumOf { it.throws }
         val totalPar = rows.sumOf { it.par }
 
@@ -72,10 +78,12 @@ class GetPlayerStatsHandler(
             avgToParPerHole = PlayerStatsAggregator.decimal(totalStrokes - totalPar, rows.size),
             avgRoundScore = PlayerStatsAggregator.decimal(rounds.sumOf { it.totalStrokes }, rounds.size),
             avgRoundToPar = PlayerStatsAggregator.decimal(rounds.sumOf { it.toPar }, rounds.size),
-            bestRoundScore = rounds.minOf { it.totalStrokes },
-            worstRoundScore = rounds.maxOf { it.totalStrokes },
-            bestRoundToPar = rounds.minOf { it.toPar },
-            worstRoundToPar = rounds.maxOf { it.toPar },
+            bestRoundScore = best?.totalStrokes,
+            worstRoundScore = worst?.totalStrokes,
+            bestRoundToPar = best?.toPar,
+            worstRoundToPar = worst?.toPar,
+            bestRoundLocationName = best?.locationName,
+            worstRoundLocationName = worst?.locationName,
             aceCount = ace,
             eagleCount = eagle,
             birdieCount = birdie,

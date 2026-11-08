@@ -1,6 +1,7 @@
 package no.disckos.backend.application.player
 
 import no.disckos.backend.api.dto.player.PlayerRoundSummaryResponse
+import no.disckos.backend.repository.HoleRepository
 import no.disckos.backend.repository.PlayerScoreRepository
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -8,12 +9,14 @@ import java.util.UUID
 
 @Component
 class GetPlayerRoundsHandler(
-    private val playerScoreRepository: PlayerScoreRepository
+    private val playerScoreRepository: PlayerScoreRepository,
+    private val holeRepository: HoleRepository
 ) {
     @Transactional(readOnly = true)
     fun handle(playerId: UUID, limit: Int): List<PlayerRoundSummaryResponse> {
         val rows = playerScoreRepository.findScoreRowsByPlayerId(playerId)
         if (rows.isEmpty()) return emptyList()
+        val roundHoles = PlayerStatsAggregator.roundHoles(holeRepository, rows)
 
         return rows.groupBy { it.roundId }
             .map { (roundId, group) ->
@@ -29,7 +32,8 @@ class GetPlayerRoundsHandler(
                     totalStrokes = totalStrokes,
                     totalPar = totalPar,
                     toPar = totalStrokes - totalPar,
-                    holesPlayed = group.size
+                    holesPlayed = group.size,
+                    roundHoles = roundHoles[roundId] ?: group.size
                 )
             }
             .sortedByDescending { it.playedAt }

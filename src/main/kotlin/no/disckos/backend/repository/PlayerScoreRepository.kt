@@ -28,7 +28,8 @@ interface PlayerScoreRepository : JpaRepository<PlayerScoreEntity, UUID> {
     ): Boolean
 
     // Event rounds take date and location from the event; standalone rounds
-    // (event_id null) carry their own — see migration 015.
+    // (event_id null) carry their own — see migration 015. Only real scores:
+    // the live scorecard stores 0 for holes not scored yet.
     @Query(
         """
         SELECT new no.disckos.backend.application.player.PlayerScoreRow(
@@ -40,7 +41,7 @@ interface PlayerScoreRepository : JpaRepository<PlayerScoreEntity, UUID> {
         JOIN RoundEntity r ON r.id = h.roundId
         LEFT JOIN EventEntity e ON e.id = r.eventId
         LEFT JOIN LocationEntity l ON l.id = COALESCE(r.locationId, e.locationId)
-        WHERE ps.playerId = :playerId
+        WHERE ps.playerId = :playerId AND ps.throws > 0
         """
     )
     fun findScoreRowsByPlayerId(@Param("playerId") playerId: UUID): List<PlayerScoreRow>
