@@ -31,9 +31,6 @@ object RankLadder {
     /** ...and of those, the best ones are averaged. Bad days barely hurt, grinding pays off. */
     const val COUNTED_ROUNDS = 5
 
-    /** A rank is shown greyed out after this long without a round on the course. */
-    const val INACTIVE_AFTER_DAYS = 90L
-
     val tiers: List<RankTier> = listOf(
         RankTier(0, "Tree Hugger I", "tree-hugger", null),
         RankTier(1, "Tree Hugger II", "tree-hugger", 36.0),

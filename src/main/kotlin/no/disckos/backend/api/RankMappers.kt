@@ -20,7 +20,6 @@ fun rankLadderResponse(): RankLadderResponse =
         placementRounds = RankLadder.PLACEMENT_ROUNDS,
         windowRounds = RankLadder.WINDOW_ROUNDS,
         countedRounds = RankLadder.COUNTED_ROUNDS,
-        inactiveAfterDays = RankLadder.INACTIVE_AFTER_DAYS,
         tiers = RankLadder.tiers.map { it.toResponse() }
     )
 
@@ -52,7 +51,6 @@ fun CourseRank.toResponse(location: LocationEntity): CourseRankResponse =
         nextTierTarget = nextTierTarget?.oneDecimal(),
         progress = progress,
         lastPlayedAt = lastPlayedAt,
-        inactive = inactive,
         lastChange = lastChange?.toResponse()
     )
 

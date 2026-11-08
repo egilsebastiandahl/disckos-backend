@@ -21,7 +21,6 @@ data class RankLadderResponse(
     val placementRounds: Int,
     val windowRounds: Int,
     val countedRounds: Int,
-    val inactiveAfterDays: Long,
     val tiers: List<RankTierResponse>
 )
 
@@ -50,7 +49,6 @@ data class CourseRankResponse(
     /** 0..1 towards [nextTier]. */
     val progress: Double?,
     val lastPlayedAt: OffsetDateTime,
-    val inactive: Boolean,
     val lastChange: RankChangeResponse?
 )
 

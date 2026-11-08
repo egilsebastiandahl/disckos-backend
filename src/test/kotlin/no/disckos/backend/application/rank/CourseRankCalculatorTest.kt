@@ -25,7 +25,7 @@ class CourseRankCalculatorTest {
 
     @Test
     fun `unranked until the placement rounds are played`() {
-        val rank = CourseRankCalculator.calculate(rounds(4, 6), offset = 0.0, now = now)
+        val rank = CourseRankCalculator.calculate(rounds(4, 6), offset = 0.0)
 
         assertNull(rank.tier)
         assertNull(rank.rating)
@@ -36,7 +36,7 @@ class CourseRankCalculatorTest {
 
     @Test
     fun `placement averages the rounds played so far and counts as a rank up`() {
-        val rank = CourseRankCalculator.calculate(rounds(4, 6, 5), offset = 0.0, now = now)
+        val rank = CourseRankCalculator.calculate(rounds(4, 6, 5), offset = 0.0)
 
         assertEquals(5.0, rank.rating)
         assertEquals(tier("Chain Master III"), rank.tier)
@@ -51,7 +51,7 @@ class CourseRankCalculatorTest {
         // Two great rounds long ago, then ten recent ones: five at +2 and five at +20.
         val rank = CourseRankCalculator.calculate(
             rounds(-10, -10, 20, 2, 20, 2, 20, 2, 20, 2, 20, 2),
-            offset = 0.0, now = now
+            offset = 0.0
         )
 
         assertEquals(2.0, rank.rating)
@@ -61,8 +61,8 @@ class CourseRankCalculatorTest {
 
     @Test
     fun `a bad day barely hurts`() {
-        val steady = CourseRankCalculator.calculate(rounds(3, 3, 3, 3, 3), 0.0, now)
-        val withDisaster = CourseRankCalculator.calculate(rounds(3, 3, 3, 3, 3, 40), 0.0, now)
+        val steady = CourseRankCalculator.calculate(rounds(3, 3, 3, 3, 3), 0.0)
+        val withDisaster = CourseRankCalculator.calculate(rounds(3, 3, 3, 3, 3, 40), 0.0)
 
         assertEquals(steady.tier, withDisaster.tier)
         assertEquals(steady.rating, withDisaster.rating)
@@ -78,7 +78,7 @@ class CourseRankCalculatorTest {
     @Test
     fun `short courses are compared per 18 holes but shown in their own terms`() {
         // +3 on 9 holes is +6 per 18: Chain Master II (needs +7), next is Chain Master III (+5).
-        val rank = CourseRankCalculator.calculate(rounds(3, 3, 3, holes = 9), 0.0, now)
+        val rank = CourseRankCalculator.calculate(rounds(3, 3, 3, holes = 9), 0.0)
 
         assertEquals(tier("Chain Master II"), rank.tier)
         assertEquals(3.0, rank.rating)
@@ -88,8 +88,8 @@ class CourseRankCalculatorTest {
 
     @Test
     fun `a positive course offset makes ranks harder to reach`() {
-        val fair = CourseRankCalculator.calculate(rounds(4, 4, 4), offset = 0.0, now = now)
-        val easyCourse = CourseRankCalculator.calculate(rounds(4, 4, 4), offset = 2.0, now = now)
+        val fair = CourseRankCalculator.calculate(rounds(4, 4, 4), offset = 0.0)
+        val easyCourse = CourseRankCalculator.calculate(rounds(4, 4, 4), offset = 2.0)
 
         assertEquals(tier("Chain Master III"), fair.tier)
         assertEquals(tier("Chain Master II"), easyCourse.tier)
@@ -99,11 +99,11 @@ class CourseRankCalculatorTest {
 
     @Test
     fun `bottom and top of the ladder`() {
-        val bottom = CourseRankCalculator.calculate(rounds(50, 50, 50), 0.0, now)
+        val bottom = CourseRankCalculator.calculate(rounds(50, 50, 50), 0.0)
         assertEquals(RankLadder.tiers.first(), bottom.tier)
         assertEquals(0.0, bottom.progress)
 
-        val top = CourseRankCalculator.calculate(rounds(-10, -10, -10), 0.0, now)
+        val top = CourseRankCalculator.calculate(rounds(-10, -10, -10), 0.0)
         assertEquals(RankLadder.tiers.last(), top.tier)
         assertNull(top.nextTier)
         assertNull(top.nextTierTarget)
@@ -114,7 +114,7 @@ class CourseRankCalculatorTest {
     fun `losing good rounds out of the window is a rank down`() {
         val rank = CourseRankCalculator.calculate(
             rounds(0, 0, 0, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10),
-            0.0, now
+            0.0
         )
 
         assertEquals(tier("Circle Crusher III"), rank.tier)
@@ -124,13 +124,13 @@ class CourseRankCalculatorTest {
     }
 
     @Test
-    fun `rank goes inactive after a long break but is kept`() {
+    fun `a long break doesn't change the rank`() {
         val old = (0 until 3).map { RankRound(UUID.randomUUID(), start.plusDays(it.toLong()), 5, 18) }
-        val rank = CourseRankCalculator.calculate(old, 0.0, now)
 
-        assertTrue(rank.inactive)
-        assertEquals(tier("Chain Master III"), rank.tier)
-        assertFalse(CourseRankCalculator.calculate(rounds(5, 5, 5), 0.0, now).inactive)
+        assertEquals(
+            CourseRankCalculator.calculate(rounds(5, 5, 5), 0.0).tier,
+            CourseRankCalculator.calculate(old, 0.0).tier
+        )
     }
 
     @Test

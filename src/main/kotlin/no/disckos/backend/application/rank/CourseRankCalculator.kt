@@ -39,7 +39,6 @@ data class CourseRank(
     /** 0..1 from the current tier's threshold towards the next one. */
     val progress: Double?,
     val lastPlayedAt: OffsetDateTime,
-    val inactive: Boolean,
     val lastChange: RankChange?
 )
 
@@ -53,11 +52,10 @@ object CourseRankCalculator {
      * @param rounds the player's complete rounds on the course, any order, at least one.
      * @param offset the course's difficulty adjustment, strokes per 18 holes.
      */
-    fun calculate(rounds: List<RankRound>, offset: Double, now: OffsetDateTime): CourseRank {
+    fun calculate(rounds: List<RankRound>, offset: Double): CourseRank {
         require(rounds.isNotEmpty()) { "A course rank needs at least one round" }
         val ordered = rounds.sortedWith(compareBy<RankRound>({ it.playedAt }, { it.roundId }))
         val latest = ordered.last()
-        val inactive = latest.playedAt.plusDays(RankLadder.INACTIVE_AFTER_DAYS).isBefore(now)
 
         if (ordered.size < RankLadder.PLACEMENT_ROUNDS) {
             return CourseRank(
@@ -70,7 +68,6 @@ object CourseRankCalculator {
                 nextTierTarget = null,
                 progress = null,
                 lastPlayedAt = latest.playedAt,
-                inactive = inactive,
                 lastChange = null
             )
         }
@@ -93,7 +90,6 @@ object CourseRankCalculator {
             nextTierTarget = next?.maxToParPer18?.let { (it - offset) * toCourseTerms },
             progress = progress(tier, adjusted),
             lastPlayedAt = latest.playedAt,
-            inactive = inactive,
             lastChange = lastChange(ordered, offset)
         )
     }

@@ -4,7 +4,6 @@ import no.disckos.backend.domain.LocationEntity
 import no.disckos.backend.repository.LocationRepository
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
-import java.time.OffsetDateTime
 import java.util.UUID
 
 data class PlayerCourseRank(val location: LocationEntity, val rank: CourseRank)
@@ -20,21 +19,20 @@ class GetPlayerRanksHandler(
         if (byLocation.isEmpty()) return emptyList()
 
         val locations = locationRepository.findAllById(byLocation.keys).associateBy { it.id }
-        val now = OffsetDateTime.now()
 
         return byLocation.mapNotNull { (locationId, rounds) ->
             val location = locations[locationId] ?: return@mapNotNull null
             PlayerCourseRank(
                 location = location,
-                rank = CourseRankCalculator.calculate(rounds.map { it.round }, location.rankOffset, now)
+                rank = CourseRankCalculator.calculate(rounds.map { it.round }, location.rankOffset)
             )
         }.sortedWith(compareBy(CourseRankOrder) { it.rank })
     }
 }
 
-/** Ranked and active first (highest tier, then best average), then inactive, then unranked. */
+/** Ranked first (highest tier, then best average), then unranked (most rounds first). */
 object CourseRankOrder : Comparator<CourseRank> by compareBy<CourseRank>(
-    { if (it.tier == null) 2 else if (it.inactive) 1 else 0 },
+    { if (it.tier == null) 1 else 0 },
     { -(it.tier?.index ?: 0) },
     { it.rating ?: Double.MAX_VALUE },
     { -it.roundsPlayed }

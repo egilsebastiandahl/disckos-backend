@@ -6,7 +6,6 @@ import no.disckos.backend.repository.LocationRepository
 import no.disckos.backend.repository.PlayerRepository
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
-import java.time.OffsetDateTime
 
 data class LeaderboardEntry(val player: Player, val rank: CourseRank)
 
@@ -31,7 +30,6 @@ class GetCourseLeaderboardsHandler(
 
         val locations = locationRepository.findAllById(rounds.map { it.locationId }.toSet()).associateBy { it.id }
         val players = playerRepository.findAllById(rounds.map { it.playerId }.toSet()).associateBy { it.id }
-        val now = OffsetDateTime.now()
 
         return rounds.groupBy { it.locationId }
             .mapNotNull { (locationId, courseRounds) ->
@@ -41,9 +39,7 @@ class GetCourseLeaderboardsHandler(
                         val player = players[playerId] ?: return@mapNotNull null
                         LeaderboardEntry(
                             player = player,
-                            rank = CourseRankCalculator.calculate(
-                                playerRounds.map { it.round }, location.rankOffset, now
-                            )
+                            rank = CourseRankCalculator.calculate(playerRounds.map { it.round }, location.rankOffset)
                         )
                     }
                     .sortedWith(compareBy(CourseRankOrder) { it.rank })
