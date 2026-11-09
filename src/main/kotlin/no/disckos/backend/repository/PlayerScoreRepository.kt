@@ -53,7 +53,7 @@ interface PlayerScoreRepository : JpaRepository<PlayerScoreEntity, UUID> {
         """
         SELECT new no.disckos.backend.application.rank.RankScoreRow(
             ps.playerId, ps.throws, h.par, h.roundId,
-            COALESCE(r.playedAt, e.date), COALESCE(r.locationId, e.locationId)
+            COALESCE(r.playedAt, e.date), COALESCE(r.locationId, e.locationId), r.layoutName
         )
         FROM PlayerScoreEntity ps
         JOIN HoleEntity h ON h.id = ps.holeId
@@ -70,7 +70,7 @@ interface PlayerScoreRepository : JpaRepository<PlayerScoreEntity, UUID> {
         """
         SELECT new no.disckos.backend.application.rank.RankScoreRow(
             ps.playerId, ps.throws, h.par, h.roundId,
-            COALESCE(r.playedAt, e.date), COALESCE(r.locationId, e.locationId)
+            COALESCE(r.playedAt, e.date), COALESCE(r.locationId, e.locationId), r.layoutName
         )
         FROM PlayerScoreEntity ps
         JOIN HoleEntity h ON h.id = ps.holeId

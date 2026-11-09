@@ -5,6 +5,8 @@ import no.disckos.backend.api.dto.admin.udiscimport.UdiscCommitRequest
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscEventOptionResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscImportedRoundResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewCardResponse
+import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewCourseResponse
+import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewLayoutResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewPlayerResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscPreviewResponse
 import no.disckos.backend.api.dto.admin.udiscimport.UdiscRoundOptionResponse
@@ -28,6 +30,8 @@ fun UdiscCommitRequest.toInput(): UdiscCommitInput =
                 startedAt = card.startedAt,
                 courseName = card.courseName,
                 pars = card.pars,
+                layoutName = card.layoutName,
+                layoutCountsForRank = card.layoutCountsForRank,
                 players = card.players.map { p ->
                     UdiscCommitPlayer(
                         udiscName = p.udiscName,
@@ -41,7 +45,29 @@ fun UdiscCommitRequest.toInput(): UdiscCommitInput =
     )
 
 fun UdiscPreview.toResponse(): UdiscPreviewResponse =
-    UdiscPreviewResponse(cardsInFile = cardsInFile, cards = cards.map { it.toResponse() })
+    UdiscPreviewResponse(
+        cardsInFile = cardsInFile,
+        cards = cards.map { it.toResponse() },
+        courses = courses.map { course ->
+            UdiscPreviewCourseResponse(
+                courseName = course.courseName,
+                suggestedLocationId = course.suggestedLocationId,
+                courseMatch = course.courseMatch.name.lowercase(),
+                cards = course.cards,
+                layouts = course.layouts.map { l ->
+                    UdiscPreviewLayoutResponse(
+                        name = l.name,
+                        holes = l.holes,
+                        par = l.par,
+                        cards = l.cards,
+                        lastPlayed = l.lastPlayed,
+                        countsForRank = l.countsForRank,
+                        remembered = l.remembered,
+                    )
+                },
+            )
+        },
+    )
 
 private fun UdiscPreviewCard.toResponse() =
     UdiscPreviewCardResponse(
@@ -56,6 +82,8 @@ private fun UdiscPreviewCard.toResponse() =
                 throws = p.throws,
                 suggestedPlayerId = p.suggestedPlayerId,
                 match = p.match.name.lowercase(),
+                doubles = p.doubles,
+                complete = p.complete,
             )
         },
         eventOptions = eventOptions.map { it.toResponse() },

@@ -40,5 +40,9 @@ class RoundEntity(
     var playedAt: OffsetDateTime? = null,
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
-    var createdAt: OffsetDateTime? = null
+    var createdAt: OffsetDateTime? = null,
+
+    /** The UDisc layout of an imported round (migration 017); null for rounds created in Disckos. */
+    @Column(name = "layout_name")
+    var layoutName: String? = null
 )

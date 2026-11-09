@@ -3,6 +3,7 @@ package no.disckos.backend.application.admin.udiscimport
 import no.disckos.backend.domain.EventEntity
 import no.disckos.backend.domain.EventType
 import no.disckos.backend.domain.HoleEntity
+import no.disckos.backend.domain.LocationLayoutEntity
 import no.disckos.backend.domain.Player
 import no.disckos.backend.domain.PlayerScoreEntity
 import no.disckos.backend.domain.RoundEntity
@@ -12,6 +13,7 @@ import no.disckos.backend.domain.UdiscImportedCardEntity
 import no.disckos.backend.domain.UdiscPlayerAliasEntity
 import no.disckos.backend.repository.EventRepository
 import no.disckos.backend.repository.HoleRepository
+import no.disckos.backend.repository.LocationLayoutRepository
 import no.disckos.backend.repository.PlayerRepository
 import no.disckos.backend.repository.PlayerScoreRepository
 import no.disckos.backend.repository.RoundRepository
@@ -47,10 +49,12 @@ class UdiscCardWriterTest {
     private val playerAliasRepository = mock<UdiscPlayerAliasRepository>()
     private val courseAliasRepository = mock<UdiscCourseAliasRepository>()
     private val importedCardRepository = mock<UdiscImportedCardRepository>()
+    private val locationLayoutRepository = mock<LocationLayoutRepository>()
 
     private val writer = UdiscCardWriter(
         eventRepository, roundRepository, holeRepository, playerRepository,
         playerScoreRepository, playerAliasRepository, courseAliasRepository, importedCardRepository,
+        locationLayoutRepository,
     )
 
     private val locationId = UUID.randomUUID()
@@ -77,7 +81,7 @@ class UdiscCardWriterTest {
 
         val result = writer.write(
             eventCard(
-                ResolvedPlayer("Seb D", seb, listOf(3, 2, null)),
+                ResolvedPlayer("Seb D", seb, listOf(3, 2, 4)),
                 ResolvedPlayer("Ola", ola, listOf(4, 3, 5)),
             ),
         )
@@ -95,10 +99,43 @@ class UdiscCardWriterTest {
         assertEquals(listOf(3, 3, 4), holes.map { it.par })
 
         val scores = savedScores()
-        assertEquals(5, scores.size, "Seb's unplayed hole 3 is left out")
-        assertEquals(listOf(3, 2), scores.filter { it.playerId == seb }.map { it.throws })
+        assertEquals(6, scores.size)
+        assertEquals(listOf(3, 2, 4), scores.filter { it.playerId == seb }.map { it.throws })
 
         verify(importedCardRepository).save(argThat<UdiscImportedCardEntity> { cardKey == KEY && roundId == result.roundId })
+    }
+
+    @Test
+    fun `skips doubles rows and unfinished rounds but imports the rest of the card`() {
+        whenever(roundRepository.findByEventIdOrderByCreatedAtAsc(event.id)).thenReturn(emptyList())
+        val eirik = UUID.randomUUID()
+
+        val result = writer.write(
+            eventCard(
+                ResolvedPlayer("Sebastian + Eirik Roe", eirik, listOf(3, 2, 3)),
+                ResolvedPlayer("Seb D", seb, listOf(3, 2, null)),
+                ResolvedPlayer("Ola", ola, listOf(4, 3, 5)),
+            ),
+        )
+
+        assertEquals(listOf("Ola"), result.importedPlayers)
+        assertEquals(
+            listOf("Sebastian + Eirik Roe (double – støttes ikke ennå)", "Seb D (fullførte ikke runden)"),
+            result.skippedPlayers,
+        )
+        assertTrue(savedScores().all { it.playerId == ola })
+        verify(playerAliasRepository, never()).save(argThat<UdiscPlayerAliasEntity> { udiscName.contains("+") })
+    }
+
+    @Test
+    fun `a card where nobody finished creates no round`() {
+        whenever(roundRepository.findByEventIdOrderByCreatedAtAsc(event.id)).thenReturn(emptyList())
+
+        val result = writer.write(eventCard(ResolvedPlayer("Seb D", seb, listOf(3, null, null))))
+
+        assertFalse(result.createdRound)
+        assertNull(result.roundId)
+        verify(roundRepository, never()).save(any<RoundEntity>())
     }
 
     @Test
@@ -233,6 +270,50 @@ class UdiscCardWriterTest {
         assertEquals(listOf("EB-maskin"), result.importedPlayers)
         verify(roundRepository, never()).save(any<RoundEntity>())
         verify(importedCardRepository, never()).save(any<UdiscImportedCardEntity>())
+    }
+
+    // ---- Layouts ----------------------------------------------------------------------
+
+    @Test
+    fun `stores the layout on the round and remembers whether it counts for ranks`() {
+        writer.write(standaloneCard(ResolvedPlayer("Ola", ola, listOf(4, 3, 5))).copy(layoutName = "Winter layout", layoutCountsForRank = false))
+
+        val round = argumentCaptor<RoundEntity>().also { verify(roundRepository).save(it.capture()) }.firstValue
+        assertEquals("Winter layout", round.layoutName)
+        verify(locationLayoutRepository).save(
+            argThat<LocationLayoutEntity> {
+                locationId == this@UdiscCardWriterTest.locationId && layoutKey == "winter layout" && name == "Winter layout" && !countsForRank
+            },
+        )
+    }
+
+    @Test
+    fun `changes a layout's rank setting when the admin changed their mind`() {
+        val saved = LocationLayoutEntity(locationId = locationId, layoutKey = "winter layout", name = "Winter layout", countsForRank = false)
+        whenever(locationLayoutRepository.findByLocationIdAndLayoutKey(locationId, "winter layout")).thenReturn(saved)
+
+        writer.write(standaloneCard(ResolvedPlayer("Ola", ola, listOf(4, 3, 5))).copy(layoutName = "Winter layout", layoutCountsForRank = true))
+
+        assertTrue(saved.countsForRank)
+        verify(locationLayoutRepository).save(saved)
+    }
+
+    @Test
+    fun `leaves the layout setting alone when the card doesn't say`() {
+        writer.write(standaloneCard(ResolvedPlayer("Ola", ola, listOf(4, 3, 5))).copy(layoutName = "Main"))
+
+        verify(locationLayoutRepository, never()).save(any<LocationLayoutEntity>())
+    }
+
+    @Test
+    fun `an existing round without a layout gets the card's layout`() {
+        val round = individualRound(eventId = event.id)
+        whenever(roundRepository.findByEventIdOrderByCreatedAtAsc(event.id)).thenReturn(listOf(round))
+        whenever(holeRepository.findByRoundId(round.id)).thenReturn(holes(round, 3))
+
+        writer.write(eventCard(ResolvedPlayer("Ola", ola, listOf(4, 3, 5))).copy(layoutName = "Main"))
+
+        assertEquals("Main", round.layoutName)
     }
 
     @Test

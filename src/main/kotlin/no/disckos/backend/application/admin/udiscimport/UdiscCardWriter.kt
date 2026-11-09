@@ -2,6 +2,7 @@ package no.disckos.backend.application.admin.udiscimport
 
 import no.disckos.backend.domain.EventType
 import no.disckos.backend.domain.HoleEntity
+import no.disckos.backend.domain.LocationLayoutEntity
 import no.disckos.backend.domain.PlayerScoreEntity
 import no.disckos.backend.domain.RoundEntity
 import no.disckos.backend.domain.ScoringFormat
@@ -10,6 +11,7 @@ import no.disckos.backend.domain.UdiscImportedCardEntity
 import no.disckos.backend.domain.UdiscPlayerAliasEntity
 import no.disckos.backend.repository.EventRepository
 import no.disckos.backend.repository.HoleRepository
+import no.disckos.backend.repository.LocationLayoutRepository
 import no.disckos.backend.repository.PlayerRepository
 import no.disckos.backend.repository.PlayerScoreRepository
 import no.disckos.backend.repository.RoundRepository
@@ -42,6 +44,7 @@ class UdiscCardWriter(
     private val playerAliasRepository: UdiscPlayerAliasRepository,
     private val courseAliasRepository: UdiscCourseAliasRepository,
     private val importedCardRepository: UdiscImportedCardRepository,
+    private val locationLayoutRepository: LocationLayoutRepository,
 ) {
     /** Where a card's scores go: an existing round (append) or a round to create. */
     private class Target(
@@ -69,22 +72,33 @@ class UdiscCardWriter(
         val seen = mutableSetOf<UUID>()
         for (p in card.players) {
             when {
+                ImportNames.isDoubles(p.udiscName) -> skipped += "${p.udiscName} (double – støttes ikke ennå)"
+                p.throws.all { it == null } -> skipped += "${p.udiscName} (ingen kast registrert)"
+                // Only finished rounds count; the rest of the card can still be imported.
+                p.throws.any { it == null } -> skipped += "${p.udiscName} (fullførte ikke runden)"
                 p.playerId in alreadyInRound -> skipped += "${p.udiscName} (allerede i runden)"
                 !seen.add(p.playerId) -> skipped += "${p.udiscName} (samme spiller to ganger på kortet)"
-                p.throws.all { it == null } -> skipped += "${p.udiscName} (ingen kast registrert)"
                 else -> toImport += p
             }
         }
 
         // Remember the admin's decisions, even when everyone was already imported.
-        target.locationId?.let { rememberCourse(card.courseName, it) }
-        card.players.forEach { rememberPlayer(it.udiscName, it.playerId) }
+        target.locationId?.let { locationId ->
+            rememberCourse(card.courseName, locationId)
+            if (card.layoutName != null && card.layoutCountsForRank != null) {
+                rememberLayout(locationId, card.layoutName, card.layoutCountsForRank)
+            }
+        }
+        card.players.filterNot { ImportNames.isDoubles(it.udiscName) }.forEach { rememberPlayer(it.udiscName, it.playerId) }
 
         if (toImport.isEmpty()) {
             return result(card, roundId = target.round?.id, created = false, imported = emptyList(), skipped = skipped)
         }
 
         val round = target.round ?: roundRepository.save(target.newRound())
+        // Rounds imported before migration 017, or created in Disckos, may not know their layout yet.
+        // The round is managed here, so the change is flushed with the transaction.
+        if (round.layoutName == null) round.layoutName = card.layoutName
         val holes = if (target.round != null) {
             target.holes
         } else {
@@ -124,7 +138,12 @@ class UdiscCardWriter(
 
         val holes = existingRound?.let { holesOf(it, ordinal, card.pars.size) }.orEmpty()
         return Target(existingRound, holes, event.locationId) {
-            RoundEntity(eventId = event.id, eventType = EventType.individual, scoringFormat = ScoringFormat.stroke)
+            RoundEntity(
+                eventId = event.id,
+                eventType = EventType.individual,
+                scoringFormat = ScoringFormat.stroke,
+                layoutName = card.layoutName,
+            )
         }
     }
 
@@ -150,6 +169,7 @@ class UdiscCardWriter(
                 scoringFormat = ScoringFormat.stroke,
                 locationId = locationId,
                 playedAt = playedAt,
+                layoutName = card.layoutName,
             )
         }
     }
@@ -195,6 +215,20 @@ class UdiscCardWriter(
         } else if (alias.locationId != locationId) {
             alias.locationId = locationId
             courseAliasRepository.save(alias)
+        }
+    }
+
+    private fun rememberLayout(locationId: UUID, layoutName: String, countsForRank: Boolean) {
+        val key = ImportNames.key(layoutName)
+        if (key.isEmpty()) return
+        val layout = locationLayoutRepository.findByLocationIdAndLayoutKey(locationId, key)
+        if (layout == null) {
+            locationLayoutRepository.save(
+                LocationLayoutEntity(locationId = locationId, layoutKey = key, name = layoutName, countsForRank = countsForRank),
+            )
+        } else if (layout.countsForRank != countsForRank) {
+            layout.countsForRank = countsForRank
+            locationLayoutRepository.save(layout)
         }
     }
 

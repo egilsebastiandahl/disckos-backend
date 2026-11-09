@@ -20,12 +20,13 @@ data class CourseLeaderboard(
 @Component
 class GetCourseLeaderboardsHandler(
     private val completedRoundLoader: CompletedRoundLoader,
+    private val rankLayoutFilter: RankLayoutFilter,
     private val locationRepository: LocationRepository,
     private val playerRepository: PlayerRepository
 ) {
     @Transactional(readOnly = true)
     fun handle(): List<CourseLeaderboard> {
-        val rounds = completedRoundLoader.forEveryone()
+        val rounds = rankLayoutFilter.ranked(completedRoundLoader.forEveryone())
         if (rounds.isEmpty()) return emptyList()
 
         val locations = locationRepository.findAllById(rounds.map { it.locationId }.toSet()).associateBy { it.id }

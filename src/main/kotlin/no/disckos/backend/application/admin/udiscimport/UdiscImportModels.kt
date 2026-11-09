@@ -27,6 +27,31 @@ data class UdiscPreview(
     val cardsInFile: Int,
     /** Every scorecard in the file, newest first. */
     val cards: List<UdiscPreviewCard>,
+    /** Every UDisc course in the file, most cards first: where it goes and which layouts count. */
+    val courses: List<UdiscPreviewCourse> = emptyList(),
+)
+
+data class UdiscPreviewCourse(
+    val courseName: String,
+    /** Location for the course's standalone rounds; null when no Disckos location matches. */
+    val suggestedLocationId: UUID?,
+    val courseMatch: CourseMatch,
+    val cards: Int,
+    /** Layouts played on this course in the file, most recently played first. */
+    val layouts: List<UdiscPreviewLayout>,
+)
+
+data class UdiscPreviewLayout(
+    val name: String,
+    /** Holes and par of the most recent card on this layout. */
+    val holes: Int,
+    val par: Int,
+    val cards: Int,
+    val lastPlayed: LocalDateTime?,
+    /** Suggested answer to "do rounds on this layout count in the rank ladder?". */
+    val countsForRank: Boolean,
+    /** The answer comes from an earlier decision for the suggested location. */
+    val remembered: Boolean,
 )
 
 data class UdiscPreviewCard(
@@ -59,7 +84,14 @@ data class UdiscPreviewPlayer(
     val throws: List<Int?>,
     val suggestedPlayerId: UUID?,
     val match: PlayerMatch,
-)
+    /** A doubles row ("A + B"); never imported. */
+    val doubles: Boolean = false,
+    /** A score on every hole. Unfinished rounds are never imported. */
+    val complete: Boolean = true,
+) {
+    /** Whether this row can be imported at all, whoever it's linked to. */
+    val importable: Boolean get() = !doubles && complete
+}
 
 data class UdiscEventOption(
     val id: UUID,
@@ -106,6 +138,10 @@ data class UdiscCommitCard(
     val courseName: String,
     val pars: List<Int>,
     val players: List<UdiscCommitPlayer>,
+    /** The card's UDisc layout, stored on the round. */
+    val layoutName: String? = null,
+    /** The admin's answer to "does this layout count in the rank ladder?"; null = don't change. */
+    val layoutCountsForRank: Boolean? = null,
 )
 
 data class UdiscCommitPlayer(

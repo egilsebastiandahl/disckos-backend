@@ -51,6 +51,12 @@ data class UdiscCommitCardRequest(
     @field:NotEmpty
     @field:Valid
     val players: List<UdiscCommitPlayerRequest>,
+
+    /** The card's UDisc layout; stored on the round. */
+    val layoutName: String? = null,
+
+    /** Whether rounds on this layout count in the rank ladder of the card's location; null = unchanged. */
+    val layoutCountsForRank: Boolean? = null,
 )
 
 data class UdiscCommitPlayerRequest(

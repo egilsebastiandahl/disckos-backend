@@ -3,9 +3,11 @@ package no.disckos.backend.application.admin.udiscimport
 import no.disckos.backend.domain.EventEntity
 import no.disckos.backend.domain.HoleEntity
 import no.disckos.backend.domain.LocationEntity
+import no.disckos.backend.domain.LocationLayoutEntity
 import no.disckos.backend.domain.Player
 import no.disckos.backend.repository.EventRepository
 import no.disckos.backend.repository.HoleRepository
+import no.disckos.backend.repository.LocationLayoutRepository
 import no.disckos.backend.repository.LocationRepository
 import no.disckos.backend.repository.PlayerRepository
 import no.disckos.backend.repository.PlayerScoreRepository
@@ -34,6 +36,7 @@ class UdiscImportPreviewHandler(
     private val playerAliasRepository: UdiscPlayerAliasRepository,
     private val courseAliasRepository: UdiscCourseAliasRepository,
     private val importedCardRepository: UdiscImportedCardRepository,
+    private val locationLayoutRepository: LocationLayoutRepository,
 ) {
     private val oslo: ZoneId = ZoneId.of("Europe/Oslo")
 
@@ -100,7 +103,64 @@ class UdiscImportPreviewHandler(
             )
         }
 
-        return UdiscPreview(cardsInFile = cards.size, cards = previewCards.sortedByDescending { it.startedAt })
+        return UdiscPreview(
+            cardsInFile = cards.size,
+            cards = previewCards.sortedByDescending { it.startedAt },
+            courses = previewCourses(cards, locations, courseAliases),
+        )
+    }
+
+    /** One entry per UDisc course: where its rounds go and which of its layouts count in ranks. */
+    private fun previewCourses(
+        cards: List<UdiscCard>,
+        locations: Map<UUID, LocationEntity>,
+        courseAliases: Map<String, UUID>,
+    ): List<UdiscPreviewCourse> {
+        val savedLayouts = locationLayoutRepository.findAll().groupBy { it.locationId }
+        return cards.groupBy { it.courseName }
+            .map { (courseName, courseCards) ->
+                val (locationId, courseMatch) = matchCourse(courseName, locations, courseAliases)
+                UdiscPreviewCourse(
+                    courseName = courseName,
+                    suggestedLocationId = locationId,
+                    courseMatch = courseMatch,
+                    cards = courseCards.size,
+                    layouts = previewLayouts(courseCards, locationId?.let { savedLayouts[it] }.orEmpty()),
+                )
+            }
+            .sortedWith(compareByDescending<UdiscPreviewCourse> { it.cards }.thenBy { it.courseName })
+    }
+
+    private fun previewLayouts(cards: List<UdiscCard>, saved: List<LocationLayoutEntity>): List<UdiscPreviewLayout> {
+        val byStart = compareBy<UdiscCard> { it.startedAt }
+        // Most recent card per layout; it stands for the layout's current holes and par.
+        val layouts = cards.groupBy { it.layoutName }
+            .map { (name, layoutCards) -> Triple(name, layoutCards.size, layoutCards.maxWith(byStart)) }
+            .sortedWith(compareByDescending(byStart) { it.third })
+
+        val savedByKey = saved.associateBy { it.layoutKey }
+        val defaultChosen = saved.any { it.countsForRank }
+        // No decision yet: the layout played most recently counts, and so does any layout with the
+        // very same pars (often the same course under another name, like "18 hole" → "18 Standard").
+        val currentPars = layouts.first().third.pars
+
+        return layouts.map { (name, count, latest) ->
+            val remembered = savedByKey[ImportNames.key(name)]
+            UdiscPreviewLayout(
+                name = name,
+                holes = latest.holeCount,
+                par = latest.pars.sumOf { it ?: DEFAULT_PAR },
+                cards = count,
+                lastPlayed = latest.startedAt,
+                countsForRank = when {
+                    remembered != null -> remembered.countsForRank
+                    // The course already has a default layout, so a new one doesn't count until ticked.
+                    defaultChosen -> false
+                    else -> latest.pars == currentPars
+                },
+                remembered = remembered != null,
+            )
+        }
     }
 
     private fun defaultSelected(
@@ -112,10 +172,11 @@ class UdiscImportPreviewHandler(
         locationId: UUID?,
         imported: UdiscImportedRound?,
     ): Boolean {
-        val matchedIds = players.mapNotNull { it.suggestedPlayerId }
+        val matchedIds = players.filter { it.importable }.mapNotNull { it.suggestedPlayerId }
         if (matchedIds.isEmpty()) return false
         if (imported != null && matchedIds.all { it in imported.playerIds }) return false
-        if (event == null) return locationId != null && imported?.eventId == null
+        // A course without a location gets one created, which the admin sees in the course list.
+        if (event == null) return imported?.eventId == null
 
         val eventRounds = roundsByEvent[event.id].orEmpty()
         val targetRound = eventRounds.getOrNull(ordinal - 1)
@@ -163,6 +224,10 @@ class UdiscImportPreviewHandler(
         players: List<Player>,
         aliases: Map<String, UUID>,
     ): UdiscPreviewPlayer {
+        val complete = throws.none { it == null }
+        if (ImportNames.isDoubles(udiscName)) {
+            return UdiscPreviewPlayer(udiscName, throws, suggestedPlayerId = null, match = PlayerMatch.NONE, doubles = true, complete = complete)
+        }
         val key = ImportNames.key(udiscName)
         val aliased = aliases[key]?.takeIf { id -> players.any { it.id == id } }
         val (id, match) = when {
@@ -171,7 +236,7 @@ class UdiscImportPreviewHandler(
                 ?: players.singleOrNull { ImportNames.looksLikePlayer(udiscName, it.name!!) }?.let { it.id to PlayerMatch.GUESS }
                 ?: (null to PlayerMatch.NONE)
         }
-        return UdiscPreviewPlayer(udiscName = udiscName, throws = throws, suggestedPlayerId = id, match = match)
+        return UdiscPreviewPlayer(udiscName = udiscName, throws = throws, suggestedPlayerId = id, match = match, complete = complete)
     }
 
     private fun cardWarnings(card: UdiscCard, eventCount: Int): List<String> = buildList {

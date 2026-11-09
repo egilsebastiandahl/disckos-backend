@@ -4,6 +4,7 @@ import no.disckos.backend.domain.EventEntity
 import no.disckos.backend.domain.EventType
 import no.disckos.backend.domain.HoleEntity
 import no.disckos.backend.domain.LocationEntity
+import no.disckos.backend.domain.LocationLayoutEntity
 import no.disckos.backend.domain.Player
 import no.disckos.backend.domain.PlayerScoreEntity
 import no.disckos.backend.domain.RoundEntity
@@ -13,6 +14,7 @@ import no.disckos.backend.domain.UdiscImportedCardEntity
 import no.disckos.backend.domain.UdiscPlayerAliasEntity
 import no.disckos.backend.repository.EventRepository
 import no.disckos.backend.repository.HoleRepository
+import no.disckos.backend.repository.LocationLayoutRepository
 import no.disckos.backend.repository.LocationRepository
 import no.disckos.backend.repository.PlayerRepository
 import no.disckos.backend.repository.PlayerScoreRepository
@@ -44,10 +46,12 @@ class UdiscImportPreviewHandlerTest {
     private val playerAliasRepository = mock<UdiscPlayerAliasRepository>()
     private val courseAliasRepository = mock<UdiscCourseAliasRepository>()
     private val importedCardRepository = mock<UdiscImportedCardRepository>()
+    private val locationLayoutRepository = mock<LocationLayoutRepository>()
 
     private val handler = UdiscImportPreviewHandler(
         eventRepository, locationRepository, playerRepository, roundRepository,
         holeRepository, playerScoreRepository, playerAliasRepository, courseAliasRepository, importedCardRepository,
+        locationLayoutRepository,
     )
 
     private val ekeberg = LocationEntity(name = "Ekeberg Discgolfpark", description = "", lat = 0.0, lon = 0.0)
@@ -118,15 +122,105 @@ class UdiscImportPreviewHandlerTest {
     }
 
     @Test
-    fun `a course that matches no location leaves the location open and the card unticked`() {
+    fun `a course that matches no location is ticked anyway, to be created as a new location`() {
         whenever(locationRepository.findAll()).thenReturn(listOf(vollen))
         whenever(eventRepository.findAll()).thenReturn(emptyList())
 
-        val card = handler.handle(csv).on("2026-10-30")
+        val preview = handler.handle(csv)
+        val card = preview.on("2026-10-30")
 
         assertNull(card.suggestedLocationId)
         assertEquals(CourseMatch.NONE, card.courseMatch)
-        assertFalse(card.selected)
+        assertTrue(card.selected)
+        assertNull(preview.courses.single().suggestedLocationId)
+    }
+
+    @Test
+    fun `doubles rows are never matched and unfinished rows don't make a card preselected`() {
+        whenever(eventRepository.findAll()).thenReturn(emptyList())
+        val csv = """
+            PlayerName,CourseName,LayoutName,StartDate,EndDate,Total,+/-,RoundRating,Hole1,Hole2,Hole3
+            Par,Ekebergsletta Discgolfpark,Main,2026-10-30 1200+0100,2026-10-30 1300+0100,9,,,3,3,3
+            Sebastian Dahl + Ola Nordmann,Ekebergsletta Discgolfpark,Main,2026-10-30 1200+0100,2026-10-30 1300+0100,8,,,3,2,3
+            Seb D,Ekebergsletta Discgolfpark,Main,2026-10-30 1200+0100,2026-10-30 1300+0100,6,,,3,3,0
+        """.trimIndent()
+
+        val card = handler.handle(csv).cards.single()
+
+        val (doubles, quitter) = card.players
+        assertTrue(doubles.doubles)
+        assertNull(doubles.suggestedPlayerId)
+        assertFalse(quitter.complete)
+        assertEquals(seb.id, quitter.suggestedPlayerId, "still linked, for the next card")
+        assertFalse(card.selected, "nobody on the card can be imported")
+    }
+
+    // ---- Courses and layouts -------------------------------------------------------------
+
+    private fun layoutCsv(vararg rounds: Triple<String, String, String>) = buildString {
+        appendLine("PlayerName,CourseName,LayoutName,StartDate,EndDate,Total,+/-,RoundRating,Hole1,Hole2,Hole3")
+        rounds.forEach { (layout, date, pars) ->
+            appendLine("Par,Holmenkollen DiscGolfpark,$layout,$date,,,,,$pars")
+            appendLine("Seb D,Holmenkollen DiscGolfpark,$layout,$date,,,,,3,3,3")
+        }
+    }
+
+    @Test
+    fun `without an earlier decision the latest layout counts, and so do layouts with the same pars`() {
+        val csv = layoutCsv(
+            Triple("Normalt oppsett", "2026-09-25 1658+0200", "3,3,4"),
+            Triple("Winter layout", "2026-04-04 1320+0200", "3,3,3"),
+            Triple("Tørt oppsett", "2025-07-26 1519+0200", "3,3,4"),
+            Triple("Normalt oppsett", "2025-05-03 1552+0200", "3,3,4"),
+        )
+
+        val course = handler.handle(csv).courses.single()
+
+        assertEquals(4, course.cards)
+        assertEquals(listOf("Normalt oppsett", "Winter layout", "Tørt oppsett"), course.layouts.map { it.name }, "most recent first")
+        assertEquals(listOf(true, false, true), course.layouts.map { it.countsForRank })
+        assertEquals(listOf(2, 1, 1), course.layouts.map { it.cards })
+        assertEquals(10, course.layouts.first().par)
+        assertTrue(course.layouts.none { it.remembered })
+    }
+
+    @Test
+    fun `an earlier decision wins, and a layout nobody decided on doesn't count once a default exists`() {
+        val holmenkollen = LocationEntity(name = "Holmenkollen", description = "", lat = 0.0, lon = 0.0)
+        whenever(locationRepository.findAll()).thenReturn(listOf(holmenkollen))
+        whenever(locationLayoutRepository.findAll()).thenReturn(
+            listOf(LocationLayoutEntity(locationId = holmenkollen.id, layoutKey = "winter layout", name = "Winter layout", countsForRank = true)),
+        )
+        val csv = layoutCsv(
+            Triple("Normalt oppsett", "2026-09-25 1658+0200", "3,3,4"),
+            Triple("Winter layout", "2026-04-04 1320+0200", "3,3,3"),
+        )
+
+        val course = handler.handle(csv).courses.single()
+
+        assertEquals(holmenkollen.id, course.suggestedLocationId)
+        assertEquals(listOf(false, true), course.layouts.map { it.countsForRank })
+        assertEquals(listOf(false, true), course.layouts.map { it.remembered })
+    }
+
+    @Test
+    fun `the full history export suggests sensible default layouts`() {
+        whenever(eventRepository.findAll()).thenReturn(emptyList())
+        whenever(locationRepository.findAll()).thenReturn(emptyList())
+        val csv = requireNotNull(javaClass.getResource("/udisc-exports/2026-11-09-full-history.csv")).readText()
+
+        val preview = handler.handle(csv)
+        val counting = preview.courses.associate { c -> c.courseName to c.layouts.filter { it.countsForRank }.map { it.name }.toSet() }
+
+        assertEquals(16, preview.courses.size)
+        assertEquals("Holmenkollen DiscGolfpark", preview.courses.first().courseName, "most cards first")
+        assertEquals(setOf("Normalt oppsett", "Tørt oppsett"), counting["Holmenkollen DiscGolfpark"])
+        assertEquals(setOf("Klemetsrud - 18 Standard", "18 hole"), counting["Klemetsrud diskgolfbane"])
+        assertEquals(setOf("Main 9-hulls"), counting["Kalvøya DiscGolfPark"])
+        assertEquals(setOf("18-hull komplett bane"), counting["Kippermoen Frisbeegolfbane"])
+        assertEquals(setOf("Main"), counting["Vollen Frisbeegolf"])
+        assertEquals(5, preview.cards.flatMap { it.players }.count { it.doubles })
+        assertEquals(300, preview.cards.flatMap { it.players }.count { it.importable })
     }
 
     @Test

@@ -44,6 +44,8 @@ class UdiscImportCommitHandler(
                 playedAt = card.startedAt?.atZone(oslo)?.toOffsetDateTime(),
                 courseName = card.courseName,
                 pars = card.pars,
+                layoutName = card.layoutName?.trim()?.takeIf(String::isNotEmpty),
+                layoutCountsForRank = card.layoutCountsForRank,
                 players = card.players.map { p ->
                     ResolvedPlayer(
                         udiscName = p.udiscName,
@@ -86,6 +88,9 @@ class UdiscImportCommitHandler(
             }
         }
         card.players.forEach { p ->
+            // The preview never offers these rows, so getting one means a stale or hand-made request.
+            require(!ImportNames.isDoubles(p.udiscName)) { "«${p.udiscName}» er en double-runde. Det støttes ikke ennå." }
+            require(p.throws.none { it == null }) { "«${p.udiscName}» fullførte ikke runden." }
             require(p.playerId != null || !p.newPlayerName.isNullOrBlank()) {
                 "«${p.udiscName}» er ikke koblet til en spiller."
             }
@@ -160,6 +165,9 @@ data class ResolvedCard(
     val courseName: String,
     val pars: List<Int>,
     val players: List<ResolvedPlayer>,
+    val layoutName: String? = null,
+    /** Null = leave the layout's rank setting as it is. */
+    val layoutCountsForRank: Boolean? = null,
 ) {
     fun failed(message: String) = UdiscCardResult(
         key = key,

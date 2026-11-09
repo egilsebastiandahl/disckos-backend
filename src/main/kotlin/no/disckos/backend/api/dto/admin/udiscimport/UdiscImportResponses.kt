@@ -7,6 +7,27 @@ import java.util.UUID
 data class UdiscPreviewResponse(
     val cardsInFile: Int,
     val cards: List<UdiscPreviewCardResponse>,
+    val courses: List<UdiscPreviewCourseResponse>,
+)
+
+data class UdiscPreviewCourseResponse(
+    val courseName: String,
+    val suggestedLocationId: UUID?,
+    /** alias | name | none */
+    val courseMatch: String,
+    val cards: Int,
+    val layouts: List<UdiscPreviewLayoutResponse>,
+)
+
+data class UdiscPreviewLayoutResponse(
+    val name: String,
+    val holes: Int,
+    val par: Int,
+    val cards: Int,
+    /** Local Norwegian time, ISO-8601 without offset. */
+    val lastPlayed: LocalDateTime?,
+    val countsForRank: Boolean,
+    val remembered: Boolean,
 )
 
 data class UdiscPreviewCardResponse(
@@ -36,6 +57,10 @@ data class UdiscPreviewPlayerResponse(
     val suggestedPlayerId: UUID?,
     /** alias | exact | guess | none */
     val match: String,
+    /** A doubles row ("A + B"); never imported. */
+    val doubles: Boolean,
+    /** A score on every hole; unfinished rounds are never imported. */
+    val complete: Boolean,
 )
 
 data class UdiscEventOptionResponse(

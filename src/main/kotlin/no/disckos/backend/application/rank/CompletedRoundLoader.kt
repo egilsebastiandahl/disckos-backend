@@ -14,12 +14,19 @@ data class RankScoreRow(
     val roundId: UUID,
     /** The event's date, or a standalone round's own start time. */
     val playedAt: OffsetDateTime,
-    val locationId: UUID?
+    val locationId: UUID?,
+    /** UDisc layout of an imported round; null for rounds created in Disckos. */
+    val layoutName: String? = null
 )
 
 data class RoundHoleCount(val roundId: UUID, val holeCount: Long)
 
-data class PlayerCourseRound(val playerId: UUID, val locationId: UUID, val round: RankRound)
+data class PlayerCourseRound(
+    val playerId: UUID,
+    val locationId: UUID,
+    val round: RankRound,
+    val layoutName: String? = null
+)
 
 /**
  * Loads the rounds that count towards ranks: individual stroke-play rounds (event or standalone)
@@ -59,7 +66,8 @@ class CompletedRoundLoader(
                         playedAt = first.playedAt,
                         toPar = holes.sumOf { it.throws - it.par },
                         holes = holeCount
-                    )
+                    ),
+                    layoutName = first.layoutName
                 )
             }
     }

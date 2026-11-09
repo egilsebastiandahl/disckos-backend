@@ -15,8 +15,14 @@ object ImportNames {
         "park", "parken", "bane", "banen", "course", "dgc", "dgp", "dg", "the", "og", "and",
     )
 
+    /** UDisc names a doubles/team row after its players: "Sebastian + Eirik Roe". */
+    private val TEAM_SEPARATOR = Regex("""\s\+\s""")
+
     /** Key used in the alias tables and for exact matching: trimmed, lower-cased, single spaces. */
     fun key(name: String): String = name.trim().lowercase().replace(WHITESPACE, " ")
+
+    /** A doubles row, which the importer doesn't support yet. */
+    fun isDoubles(udiscName: String): Boolean = TEAM_SEPARATOR.containsMatchIn(udiscName)
 
     private fun tokens(name: String): List<String> = key(name).split(NON_WORD).filter { it.isNotEmpty() }
 
