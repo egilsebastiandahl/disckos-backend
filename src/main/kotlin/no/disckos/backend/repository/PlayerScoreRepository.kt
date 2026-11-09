@@ -1,5 +1,6 @@
 package no.disckos.backend.repository
 
+import no.disckos.backend.application.player.PlayerHoleScoreRow
 import no.disckos.backend.application.player.PlayerScoreRow
 import no.disckos.backend.application.rank.RankScoreRow
 import no.disckos.backend.domain.PlayerScoreEntity
@@ -45,6 +46,29 @@ interface PlayerScoreRepository : JpaRepository<PlayerScoreEntity, UUID> {
         """
     )
     fun findScoreRowsByPlayerId(@Param("playerId") playerId: UUID): List<PlayerScoreRow>
+
+    // Per-hole development on one course. Individual stroke-play only: in team formats a
+    // player's hole score isn't their own throws. Only real scores (live scorecards store 0).
+    @Query(
+        """
+        SELECT new no.disckos.backend.application.player.PlayerHoleScoreRow(
+            h.roundId, h.holeNumber, h.par, ps.throws, COALESCE(r.playedAt, e.date), r.layoutName
+        )
+        FROM PlayerScoreEntity ps
+        JOIN HoleEntity h ON h.id = ps.holeId
+        JOIN RoundEntity r ON r.id = h.roundId
+        LEFT JOIN EventEntity e ON e.id = r.eventId
+        WHERE ps.playerId = :playerId
+          AND COALESCE(r.locationId, e.locationId) = :locationId
+          AND r.eventType = no.disckos.backend.domain.EventType.individual
+          AND r.scoringFormat = no.disckos.backend.domain.ScoringFormat.stroke
+          AND ps.throws > 0
+        """
+    )
+    fun findHoleRowsByPlayerIdAndLocationId(
+        @Param("playerId") playerId: UUID,
+        @Param("locationId") locationId: UUID
+    ): List<PlayerHoleScoreRow>
 
     // Ranks: individual stroke-play rounds only, and only real scores (the live
     // scorecard stores 0 for holes not scored yet). Completeness is checked in

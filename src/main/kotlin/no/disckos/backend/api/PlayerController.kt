@@ -2,6 +2,7 @@ package no.disckos.backend.api
 
 import no.disckos.backend.api.dto.player.HeadToHeadResponse
 import no.disckos.backend.api.dto.player.HeadToHeadRoundResponse
+import no.disckos.backend.api.dto.player.PlayerHoleRoundResponse
 import no.disckos.backend.api.dto.player.PlayerResponse
 import no.disckos.backend.api.dto.player.PlayerRoundSummaryResponse
 import no.disckos.backend.api.dto.player.PlayerStatsByLocationResponse
@@ -10,6 +11,7 @@ import no.disckos.backend.api.dto.player.toResponse
 import no.disckos.backend.api.dto.rank.PlayerRanksResponse
 import no.disckos.backend.application.player.GetHeadToHeadHandler
 import no.disckos.backend.application.player.GetPlayerHandler
+import no.disckos.backend.application.player.GetPlayerHolesHandler
 import no.disckos.backend.application.player.GetPlayerRoundsHandler
 import no.disckos.backend.application.player.GetPlayerStatsByLocationHandler
 import no.disckos.backend.application.player.GetPlayerStatsHandler
@@ -32,6 +34,7 @@ class PlayerController(
     private val getPlayerStatsHandler: GetPlayerStatsHandler,
     private val getPlayerStatsByLocationHandler: GetPlayerStatsByLocationHandler,
     private val getPlayerRoundsHandler: GetPlayerRoundsHandler,
+    private val getPlayerHolesHandler: GetPlayerHolesHandler,
     private val getPlayerRanksHandler: GetPlayerRanksHandler,
     private val getHeadToHeadHandler: GetHeadToHeadHandler,
 ) {
@@ -97,4 +100,12 @@ class PlayerController(
         @RequestParam(required = false, defaultValue = "20") limit: Int
     ): List<PlayerRoundSummaryResponse> =
         getPlayerRoundsHandler.handle(id, limit)
+
+    /** The player's rounds on one course, hole by hole, for "Utvikling per hull". */
+    @GetMapping("/{id}/holes")
+    fun getPlayerHoles(
+        @PathVariable id: UUID,
+        @RequestParam locationId: UUID
+    ): List<PlayerHoleRoundResponse> =
+        getPlayerHolesHandler.handle(id, locationId)
 }
