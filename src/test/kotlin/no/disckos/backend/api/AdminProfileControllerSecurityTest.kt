@@ -1,5 +1,6 @@
 package no.disckos.backend.api
 
+import no.disckos.backend.application.playerlink.PlayerLinkService
 import no.disckos.backend.domain.Profile
 import no.disckos.backend.repository.ProfileRepository
 import no.disckos.backend.service.ProfileService
@@ -33,7 +34,7 @@ class AdminProfileControllerSecurityTest {
         }
 
         @Bean
-        fun controller(profileService: ProfileService) = AdminProfileController(mock<ProfileRepository>(), profileService)
+        fun controller(profileService: ProfileService) = AdminProfileController(mock<ProfileRepository>(), profileService, mock<PlayerLinkService>())
     }
 
     @Autowired

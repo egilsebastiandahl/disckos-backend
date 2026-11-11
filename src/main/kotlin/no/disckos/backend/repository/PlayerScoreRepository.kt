@@ -1,5 +1,6 @@
 package no.disckos.backend.repository
 
+import no.disckos.backend.application.memberimport.RoundPlayer
 import no.disckos.backend.application.player.PlayerHoleScoreRow
 import no.disckos.backend.application.player.PlayerScoreRow
 import no.disckos.backend.application.rank.RankScoreRow
@@ -13,6 +14,29 @@ interface PlayerScoreRepository : JpaRepository<PlayerScoreEntity, UUID> {
     fun findByHoleId(holeId: UUID): List<PlayerScoreEntity>
     fun findByHoleIdIn(holeIds: Collection<UUID>): List<PlayerScoreEntity>
     fun deleteByHoleIdIn(holeIds: Collection<UUID>)
+    fun deleteByHoleIdInAndPlayerId(holeIds: Collection<UUID>, playerId: UUID)
+
+    /** How many rounds a player has a score in: what a member would inherit by claiming the player. */
+    @Query(
+        """
+        SELECT COUNT(DISTINCT h.roundId)
+        FROM PlayerScoreEntity ps
+        JOIN HoleEntity h ON h.id = ps.holeId
+        WHERE ps.playerId = :playerId AND ps.throws > 0
+        """
+    )
+    fun countRoundsByPlayerId(@Param("playerId") playerId: UUID): Long
+
+    /** Which players have a score in each of these rounds. */
+    @Query(
+        """
+        SELECT DISTINCT new no.disckos.backend.application.memberimport.RoundPlayer(h.roundId, ps.playerId)
+        FROM PlayerScoreEntity ps
+        JOIN HoleEntity h ON h.id = ps.holeId
+        WHERE h.roundId IN :roundIds AND ps.throws > 0
+        """
+    )
+    fun findRoundPlayers(@Param("roundIds") roundIds: Collection<UUID>): List<RoundPlayer>
     fun findByHoleIdAndPlayerId(holeId: UUID, playerId: UUID): PlayerScoreEntity?
 
     @Query(

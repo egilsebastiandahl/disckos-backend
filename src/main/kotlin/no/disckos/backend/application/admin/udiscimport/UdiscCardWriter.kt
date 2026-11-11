@@ -1,5 +1,6 @@
 package no.disckos.backend.application.admin.udiscimport
 
+import no.disckos.backend.domain.ConfirmationStatus
 import no.disckos.backend.domain.EventType
 import no.disckos.backend.domain.HoleEntity
 import no.disckos.backend.domain.LocationLayoutEntity
@@ -15,6 +16,7 @@ import no.disckos.backend.repository.LocationLayoutRepository
 import no.disckos.backend.repository.PlayerRepository
 import no.disckos.backend.repository.PlayerScoreRepository
 import no.disckos.backend.repository.RoundRepository
+import no.disckos.backend.repository.ScoreConfirmationRepository
 import no.disckos.backend.repository.UdiscCourseAliasRepository
 import no.disckos.backend.repository.UdiscImportedCardRepository
 import no.disckos.backend.repository.UdiscPlayerAliasRepository
@@ -22,6 +24,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
+import java.time.OffsetDateTime
 import java.util.UUID
 
 /**
@@ -45,6 +48,7 @@ class UdiscCardWriter(
     private val courseAliasRepository: UdiscCourseAliasRepository,
     private val importedCardRepository: UdiscImportedCardRepository,
     private val locationLayoutRepository: LocationLayoutRepository,
+    private val confirmationRepository: ScoreConfirmationRepository,
 ) {
     /** Where a card's scores go: an existing round (append) or a round to create. */
     private class Target(
@@ -115,6 +119,7 @@ class UdiscCardWriter(
             },
         )
         if (previous == null) importedCardRepository.save(UdiscImportedCardEntity(cardKey = card.key, roundId = round.id))
+        settleConfirmations(round.id, toImport.map { it.playerId })
 
         return result(card, round.id, created = target.round == null, imported = toImport.map { it.udiscName }, skipped = skipped)
     }
@@ -192,6 +197,22 @@ class UdiscCardWriter(
         } else {
             "Kortet er allerede importert som frittstående runde. Slett den under «Frittstående runder» først hvis det skal flyttes."
         }
+    }
+
+    /**
+     * A member upload may have asked these players to confirm their score in this round. The
+     * admin's import just added it, so those requests are settled (decided by nobody: the import).
+     */
+    private fun settleConfirmations(roundId: UUID, playerIds: List<UUID>) {
+        val pending = confirmationRepository.findByRoundIdAndPlayerIdIn(roundId, playerIds)
+            .filter { it.status == ConfirmationStatus.pending }
+        if (pending.isEmpty()) return
+        val now = OffsetDateTime.now()
+        pending.forEach {
+            it.status = ConfirmationStatus.confirmed
+            it.decidedAt = now
+        }
+        confirmationRepository.saveAll(pending)
     }
 
     private fun rememberPlayer(udiscName: String, playerId: UUID) {

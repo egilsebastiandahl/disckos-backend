@@ -3,6 +3,7 @@ package no.disckos.backend.api
 import no.disckos.backend.api.dto.LinkPlayerDto
 import no.disckos.backend.api.dto.ProfileDto
 import no.disckos.backend.api.dto.toDto
+import no.disckos.backend.application.playerlink.PlayerLinkService
 import no.disckos.backend.repository.ProfileRepository
 import no.disckos.backend.service.ProfileService
 import org.springframework.http.HttpStatus
@@ -23,6 +24,7 @@ import java.util.UUID
 class AdminProfileController(
     private val profileRepository: ProfileRepository,
     private val profileService: ProfileService,
+    private val playerLinkService: PlayerLinkService,
 ) {
 
     @GetMapping
@@ -37,6 +39,8 @@ class AdminProfileController(
     ): ProfileDto {
         try {
             val updated = profileService.linkPlayer(profileId, body?.playerId)
+            // The admin has decided who this account is; any open request is settled.
+            playerLinkService.dropPending(profileId)
             return updated.toDto()
         } catch (ex: NoSuchElementException) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, ex.message)
@@ -49,6 +53,7 @@ class AdminProfileController(
     fun unlinkPlayerFromProfile(@PathVariable profileId: UUID): ProfileDto {
         try {
             val updated = profileService.linkPlayer(profileId, null)
+            playerLinkService.dropPending(profileId)
             return updated.toDto()
         } catch (ex: NoSuchElementException) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, ex.message)

@@ -17,6 +17,7 @@ import no.disckos.backend.repository.LocationLayoutRepository
 import no.disckos.backend.repository.PlayerRepository
 import no.disckos.backend.repository.PlayerScoreRepository
 import no.disckos.backend.repository.RoundRepository
+import no.disckos.backend.repository.ScoreConfirmationRepository
 import no.disckos.backend.repository.UdiscCourseAliasRepository
 import no.disckos.backend.repository.UdiscImportedCardRepository
 import no.disckos.backend.repository.UdiscPlayerAliasRepository
@@ -54,7 +55,7 @@ class UdiscCardWriterTest {
     private val writer = UdiscCardWriter(
         eventRepository, roundRepository, holeRepository, playerRepository,
         playerScoreRepository, playerAliasRepository, courseAliasRepository, importedCardRepository,
-        locationLayoutRepository,
+        locationLayoutRepository, mock<ScoreConfirmationRepository>(),
     )
 
     private val locationId = UUID.randomUUID()

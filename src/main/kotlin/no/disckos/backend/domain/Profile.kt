@@ -39,6 +39,10 @@ class Profile {
     @Column(name = "is_owner", nullable = false)
     var isOwner: Boolean = false
 
+    /** The member's own name in UDisc, remembered from their first upload (migration 019). */
+    @Column(name = "udisc_name")
+    var udiscName: String? = null
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "player_id", unique = true)
     var player: Player? = null

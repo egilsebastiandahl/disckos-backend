@@ -1,6 +1,5 @@
 package no.disckos.backend.api
 
-import no.disckos.backend.api.dto.LinkPlayerDto
 import no.disckos.backend.api.dto.ProfileDto
 import no.disckos.backend.api.dto.UpdateProfileDto
 import no.disckos.backend.api.dto.toDto
@@ -10,7 +9,6 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
@@ -65,20 +63,6 @@ class ProfileController(
         }
     }
 
-    @PutMapping("/profile/player")
-    fun linkPlayer(@RequestBody body: LinkPlayerDto?): ProfileDto {
-        val auth = SecurityContextHolder.getContext().authentication
-        val principal = auth?.principal as? String ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated")
-        val userId = try { UUID.fromString(principal) } catch (ex: Exception) { throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid user id") }
-
-        try {
-            val updated = profileService.linkPlayer(userId, body?.playerId)
-            return updated.toDto()
-        } catch (ex: NoSuchElementException) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, ex.message)
-        } catch (ex: IllegalStateException) {
-            throw ResponseStatusException(HttpStatus.CONFLICT, ex.message)
-        }
-    }
-
+    // Members no longer link themselves to a player here: see MemberPlayerLinkController
+    // (create your own player, or ask an admin to link you to an existing one).
 }
