@@ -35,12 +35,16 @@ class SupabaseJwtAuthenticationFilter(
             val userId = claims.subject
             val authorities = mutableListOf(SimpleGrantedAuthority("ROLE_USER"))
 
-            // Check if the user is an admin based on their profile
+            // Roles come from the profile on every request, so a revoked admin loses access at once.
             try {
                 val uuid = UUID.fromString(userId)
                 val profile = profileRepository.findById(uuid)
                 if (profile.isPresent && profile.get().isAdmin == true) {
                     authorities.add(SimpleGrantedAuthority("ROLE_admin"))
+                }
+                // Owners give and revoke the admin role (migration 018).
+                if (profile.isPresent && profile.get().isOwner) {
+                    authorities.add(SimpleGrantedAuthority("ROLE_owner"))
                 }
             } catch (_: Exception) {
                 // If profile lookup fails, continue with basic USER role

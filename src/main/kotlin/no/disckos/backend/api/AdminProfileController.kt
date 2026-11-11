@@ -2,7 +2,7 @@ package no.disckos.backend.api
 
 import no.disckos.backend.api.dto.LinkPlayerDto
 import no.disckos.backend.api.dto.ProfileDto
-import no.disckos.backend.domain.Profile
+import no.disckos.backend.api.dto.toDto
 import no.disckos.backend.repository.ProfileRepository
 import no.disckos.backend.service.ProfileService
 import org.springframework.http.HttpStatus
@@ -55,14 +55,22 @@ class AdminProfileController(
         }
     }
 
-    private fun Profile.toDto() = ProfileDto(
-        id = id!!,
-        username = username,
-        displayName = displayName,
-        avatarUrl = avatarUrl,
-        bio = bio,
-        isAdmin = isAdmin ?: false,
-        playerId = player?.id,
-        playerName = player?.name,
-    )
+    /** Gives the profile the admin role. Owners only (migration 018). */
+    @PutMapping("/{profileId}/admin")
+    @PreAuthorize("hasRole('owner')")
+    fun grantAdmin(@PathVariable profileId: UUID): ProfileDto = setAdmin(profileId, true)
+
+    /** Revokes the profile's admin role. Owners only; an owner's own admin role can't be revoked. */
+    @DeleteMapping("/{profileId}/admin")
+    @PreAuthorize("hasRole('owner')")
+    fun revokeAdmin(@PathVariable profileId: UUID): ProfileDto = setAdmin(profileId, false)
+
+    private fun setAdmin(profileId: UUID, admin: Boolean): ProfileDto =
+        try {
+            profileService.setAdmin(profileId, admin).toDto()
+        } catch (ex: NoSuchElementException) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, ex.message)
+        } catch (ex: IllegalStateException) {
+            throw ResponseStatusException(HttpStatus.CONFLICT, ex.message)
+        }
 }

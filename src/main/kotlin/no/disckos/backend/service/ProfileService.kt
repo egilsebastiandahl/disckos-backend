@@ -40,6 +40,23 @@ class ProfileService(
         return profileRepository.save(p)
     }
 
+    /**
+     * Gives or revokes the admin role. Who may call this is checked by the caller (owners only);
+     * this enforces the rule that holds for everyone: an owner is always an admin.
+     */
+    fun setAdmin(profileId: UUID, admin: Boolean): Profile {
+        val profile = profileRepository.findById(profileId)
+            .orElseThrow { NoSuchElementException("Profile not found") }
+        if (!admin && profile.isOwner) {
+            throw IllegalStateException("An owner is always an admin")
+        }
+        if (profile.isAdmin == admin) return profile
+
+        profile.isAdmin = admin
+        profile.updatedAt = OffsetDateTime.now()
+        return profileRepository.save(profile)
+    }
+
     fun linkPlayer(userId: UUID, playerId: UUID?): Profile {
         val profile = profileRepository.findById(userId)
             .orElseThrow { NoSuchElementException("Profile not found") }

@@ -3,11 +3,11 @@ package no.disckos.backend.api
 import no.disckos.backend.api.dto.LinkPlayerDto
 import no.disckos.backend.api.dto.ProfileDto
 import no.disckos.backend.api.dto.UpdateProfileDto
+import no.disckos.backend.api.dto.toDto
 import no.disckos.backend.security.SupabaseJwtService
 import no.disckos.backend.service.ProfileService
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
-import no.disckos.backend.domain.Profile
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -81,14 +81,4 @@ class ProfileController(
         }
     }
 
-    private fun Profile.toDto() = ProfileDto(
-        id = id!!,
-        username = username,
-        displayName = displayName,
-        avatarUrl = avatarUrl,
-        bio = bio,
-        isAdmin = isAdmin ?: false,
-        playerId = player?.id,
-        playerName = player?.name,
-    )
 }

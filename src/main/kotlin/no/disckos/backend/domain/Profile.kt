@@ -35,6 +35,10 @@ class Profile {
     @Column(name = "is_admin")
     var isAdmin: Boolean? = false
 
+    /** Can give and revoke the admin role. Only set in SQL (migration 018); an owner is always an admin. */
+    @Column(name = "is_owner", nullable = false)
+    var isOwner: Boolean = false
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "player_id", unique = true)
     var player: Player? = null
