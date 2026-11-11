@@ -2,6 +2,7 @@ package no.disckos.backend.application.memberimport
 
 import no.disckos.backend.application.admin.udiscimport.ImportNames
 import no.disckos.backend.application.admin.udiscimport.UdiscCard
+import no.disckos.backend.application.admin.udiscimport.UdiscPlayerRow
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -22,8 +23,13 @@ enum class MemberCardStatus {
     UNFINISHED,
     /** The export lacks a start time or par on some hole. */
     INCOMPLETE_CARD,
-    /** No admin has linked this UDisc course to a Disckos course yet. */
-    UNKNOWN_COURSE,
+    /**
+     * Disckos doesn't know this UDisc course yet. The round can be uploaded, but it's held until
+     * an admin creates the course or links it to an existing one (see CourseRequestService).
+     */
+    NEW_COURSE,
+    /** Uploaded before, and still waiting for an admin to decide about the course. */
+    ALREADY_WAITING,
     /** Played on a Disckos event day at the event's course; admins import those into the event. */
     EVENT_DAY,
     /** Already imported into an event. */
@@ -61,7 +67,7 @@ data class MemberCardPlan(
     val locationId: UUID? = null,
     /** The round this card was imported to before, to add to; null = a new round. */
     val existingRoundId: UUID? = null,
-    /** The uploader's throws, when [status] is READY. */
+    /** The uploader's throws, when [status] is READY or NEW_COURSE. */
     val ownThrows: List<Int>? = null,
     val others: List<OtherPlayerPlan> = emptyList(),
 )
@@ -96,6 +102,8 @@ class MemberImportContext(
     val eventLocationsByDate: Map<LocalDate, List<UUID?>>,
     val importedCards: Map<String, ImportedCardState>,
     val nearbyRounds: List<NearbyRound>,
+    /** Card key → players whose own upload of that card waits for a course decision. */
+    val heldCards: Map<String, Set<UUID>> = emptyMap(),
 )
 
 /**
@@ -103,7 +111,8 @@ class MemberImportContext(
  * give the same plan, which is why commit replans from the file instead of trusting the browser.
  *
  * The rules:
- * - only cards the uploader played and finished, on courses an admin has linked;
+ * - only cards the uploader played and finished; on a course Disckos doesn't know yet the
+ *   card is held until an admin creates or links the course, then planned again;
  * - never event rounds (admins import those into the event);
  * - the uploader's own score goes in; other club players are asked to confirm theirs;
  * - guests are left out entirely;
@@ -175,7 +184,18 @@ object MemberImportPlanner {
         if (startedAt == null || card.pars.any { it == null }) return MemberCardPlan(card, MemberCardStatus.INCOMPLETE_CARD)
 
         val locationId = ctx.courseAliases[ImportNames.key(card.courseName)]
-            ?: return MemberCardPlan(card, MemberCardStatus.UNKNOWN_COURSE)
+        if (locationId == null) {
+            // A course Disckos doesn't know: held for an admin, who decides where it belongs.
+            // Event and duplicate checks need a course, so they run when the round is released.
+            val held = ctx.heldCards[card.key].orEmpty()
+            if (ctx.uploaderPlayerId in held) return MemberCardPlan(card, MemberCardStatus.ALREADY_WAITING)
+            return MemberCardPlan(
+                card = card,
+                status = MemberCardStatus.NEW_COURSE,
+                ownThrows = mine.throws.map { it!! },
+                others = othersOn(card, mine, ctx, alreadyIn = held),
+            )
+        }
         val imported = ctx.importedCards[card.key]
         if (imported?.eventId != null) return MemberCardPlan(card, MemberCardStatus.IN_EVENT, locationId)
         if (imported == null) {
@@ -193,27 +213,30 @@ object MemberImportPlanner {
             return MemberCardPlan(card, MemberCardStatus.ALREADY_UPLOADED, locationId, imported?.roundId)
         }
 
-        val seen = mutableSetOf(ctx.uploaderPlayerId)
-        val others = card.players.filter { it !== mine }.map { row ->
-            val playerId = if (ImportNames.isDoubles(row.name)) null else playerFor(row.name, ctx)
-            val status = when {
-                ImportNames.isDoubles(row.name) -> OtherPlayerStatus.DOUBLES
-                playerId == null -> OtherPlayerStatus.GUEST
-                row.throws.any { it == null } -> OtherPlayerStatus.UNFINISHED
-                !seen.add(playerId) || playerId in inRound || playerId in asked || playerId in nearby -> OtherPlayerStatus.ALREADY
-                else -> OtherPlayerStatus.ASK
-            }
-            OtherPlayerPlan(row.name, playerId, playerId?.let { ctx.players[it] }, row.throws, status)
-        }
-
         return MemberCardPlan(
             card = card,
             status = MemberCardStatus.READY,
             locationId = locationId,
             existingRoundId = imported?.roundId,
             ownThrows = mine.throws.map { it!! },
-            others = others,
+            others = othersOn(card, mine, ctx, alreadyIn = inRound + asked + nearby),
         )
+    }
+
+    /** Everyone on the card but the uploader: club players to ask, and who's left out and why. */
+    private fun othersOn(card: UdiscCard, mine: UdiscPlayerRow, ctx: MemberImportContext, alreadyIn: Set<UUID>): List<OtherPlayerPlan> {
+        val seen = mutableSetOf(ctx.uploaderPlayerId)
+        return card.players.filter { it !== mine }.map { row ->
+            val playerId = if (ImportNames.isDoubles(row.name)) null else playerFor(row.name, ctx)
+            val status = when {
+                ImportNames.isDoubles(row.name) -> OtherPlayerStatus.DOUBLES
+                playerId == null -> OtherPlayerStatus.GUEST
+                row.throws.any { it == null } -> OtherPlayerStatus.UNFINISHED
+                !seen.add(playerId) || playerId in alreadyIn -> OtherPlayerStatus.ALREADY
+                else -> OtherPlayerStatus.ASK
+            }
+            OtherPlayerPlan(row.name, playerId, playerId?.let { ctx.players[it] }, row.throws, status)
+        }
     }
 
     /**

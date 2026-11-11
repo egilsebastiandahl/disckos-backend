@@ -52,6 +52,7 @@ data class MemberImportCommitResult(val udiscName: String, val results: List<Mem
 class MemberImportHandler(
     private val contextLoader: MemberImportContextLoader,
     private val cardWriter: MemberCardWriter,
+    private val courseRequestService: CourseRequestService,
     private val locationRepository: LocationRepository,
     private val profileRepository: ProfileRepository,
     private val rateLimiter: MemberImportRateLimiter,
@@ -90,19 +91,21 @@ class MemberImportHandler(
 
         val plans = MemberImportPlanner.plan(cards, name, ctx).filter { it.card.key in cardKeys }
         val results = plans.map { plan ->
-            if (plan.status != MemberCardStatus.READY) {
-                MemberCardResult(plan.card.key, null, false, emptyList(), "Kan ikke lastes opp (${plan.status}).")
-            } else {
-                write(plan, uploader)
+            when (plan.status) {
+                MemberCardStatus.READY -> attempt(plan) { cardWriter.write(plan, uploader) }
+                // A course Disckos doesn't know: held until an admin creates or links it.
+                MemberCardStatus.NEW_COURSE -> attempt(plan) { courseRequestService.hold(plan, uploader, name) }
+                else -> MemberCardResult(plan.card.key, null, false, emptyList(), "Kan ikke lastes opp (${plan.status}).")
             }
         }
         rememberUdiscName(profileId, name)
         return MemberImportCommitResult(name, results)
     }
 
-    private fun write(plan: MemberCardPlan, uploader: Uploader): MemberCardResult =
+    /** Runs one card's write (or hold); a failure becomes that card's error, not the whole upload's. */
+    private fun attempt(plan: MemberCardPlan, action: () -> MemberCardResult): MemberCardResult =
         try {
-            cardWriter.write(plan, uploader)
+            action()
         } catch (ex: ResponseStatusException) {
             MemberCardResult(plan.card.key, null, false, emptyList(), ex.reason ?: "Kunne ikke lastes opp.")
         } catch (ex: org.springframework.dao.DataIntegrityViolationException) {

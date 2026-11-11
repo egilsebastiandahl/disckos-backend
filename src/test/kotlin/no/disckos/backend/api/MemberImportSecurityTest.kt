@@ -1,5 +1,6 @@
 package no.disckos.backend.api
 
+import no.disckos.backend.application.memberimport.CourseRequestService
 import no.disckos.backend.application.memberimport.MemberImportContextLoader
 import no.disckos.backend.application.memberimport.MemberImportHandler
 import no.disckos.backend.application.memberimport.MemberUploadService
@@ -34,7 +35,7 @@ class MemberImportSecurityTest {
 
         @Bean
         fun memberController(uploads: MemberUploadService, confirmations: ScoreConfirmationService) =
-            MemberImportController(mock<MemberImportHandler>(), uploads, confirmations, mock<MemberImportContextLoader>())
+            MemberImportController(mock<MemberImportHandler>(), uploads, confirmations, mock<MemberImportContextLoader>(), mock<CourseRequestService>())
 
         @Bean
         fun adminController(uploads: MemberUploadService, confirmations: ScoreConfirmationService) =

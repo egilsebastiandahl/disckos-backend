@@ -4,6 +4,8 @@ import jakarta.validation.Valid
 import no.disckos.backend.api.dto.member.MemberImportCommitRequest
 import no.disckos.backend.api.dto.member.MemberImportPreviewRequest
 import no.disckos.backend.application.memberimport.ConfirmationView
+import no.disckos.backend.application.memberimport.CourseRequestService
+import no.disckos.backend.application.memberimport.HeldUploadView
 import no.disckos.backend.application.memberimport.MemberImportCommitResult
 import no.disckos.backend.application.memberimport.MemberImportContextLoader
 import no.disckos.backend.application.memberimport.MemberImportHandler
@@ -36,6 +38,7 @@ class MemberImportController(
     private val uploadService: MemberUploadService,
     private val confirmationService: ScoreConfirmationService,
     private val contextLoader: MemberImportContextLoader,
+    private val courseRequestService: CourseRequestService,
 ) {
     @PostMapping("/import/udisc/preview")
     fun preview(@Valid @RequestBody request: MemberImportPreviewRequest): MemberImportPreview =
@@ -50,6 +53,13 @@ class MemberImportController(
 
     @DeleteMapping("/uploads/{id}")
     fun undoUpload(@PathVariable id: UUID) = uploadService.undo(id, me(), asAdmin = false)
+
+    /** The caller's rounds on courses waiting for an admin, and ones that were turned away. */
+    @GetMapping("/held-uploads")
+    fun myHeldUploads(): List<HeldUploadView> = courseRequestService.mine(me())
+
+    @DeleteMapping("/held-uploads/{id}")
+    fun removeHeldUpload(@PathVariable id: UUID) = courseRequestService.removeMine(id, me())
 
     /** Scores others uploaded for the caller, waiting for them to confirm. Empty without a linked player. */
     @GetMapping("/confirmations")

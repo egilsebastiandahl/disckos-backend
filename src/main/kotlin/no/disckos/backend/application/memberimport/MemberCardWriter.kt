@@ -28,6 +28,8 @@ data class MemberCardResult(
     /** Club players asked to confirm their score. */
     val askedPlayers: List<String>,
     val error: String?,
+    /** Set when the round waits for an admin to approve this (new) course instead. */
+    val heldForCourse: String? = null,
 )
 
 /**

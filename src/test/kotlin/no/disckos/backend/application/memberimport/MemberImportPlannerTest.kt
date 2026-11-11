@@ -42,6 +42,7 @@ class MemberImportPlannerTest {
         events: Map<LocalDate, List<UUID?>> = emptyMap(),
         imported: Map<String, ImportedCardState> = emptyMap(),
         nearby: List<NearbyRound> = emptyList(),
+        held: Map<String, Set<UUID>> = emptyMap(),
     ) = MemberImportContext(
         uploaderPlayerId = me,
         players = players,
@@ -51,6 +52,7 @@ class MemberImportPlannerTest {
         eventLocationsByDate = events,
         importedCards = imported,
         nearbyRounds = nearby,
+        heldCards = held,
     )
 
     private fun plan(card: UdiscCard, ctx: MemberImportContext = ctx(), name: String = "Seb D") =
@@ -96,11 +98,29 @@ class MemberImportPlannerTest {
     }
 
     @Test
-    fun `only courses an admin has linked`() {
-        // Similar to a known course, but nobody has linked it: no guessing.
-        val plan = plan(card(finished("Seb D"), course = "Holmenkollen Discgolf"))
+    fun `a course nobody has linked is held for an admin, never guessed`() {
+        // Similar to a known course, but nobody has linked it: an admin decides where it belongs.
+        val plan = plan(card(finished("Seb D", 2), finished("Kari"), finished("Tante Grete"), course = "Holmenkollen Discgolf"))
 
-        assertEquals(MemberCardStatus.UNKNOWN_COURSE, plan.status)
+        assertEquals(MemberCardStatus.NEW_COURSE, plan.status)
+        assertNull(plan.locationId)
+        assertEquals(List(9) { 2 }, plan.ownThrows)
+        assertEquals(
+            listOf(OtherPlayerStatus.ASK, OtherPlayerStatus.GUEST),
+            plan.others.map { it.status },
+        )
+    }
+
+    @Test
+    fun `a round already waiting for its course isn't held twice`() {
+        val c = card(finished("Seb D"), finished("Kari"), course = "Ny Bane DGP")
+
+        assertEquals(MemberCardStatus.ALREADY_WAITING, plan(c, ctx(held = mapOf(c.key to setOf(me)))).status)
+
+        // Kari uploaded the same card herself: she isn't asked about it again.
+        val kariWaits = plan(c, ctx(held = mapOf(c.key to setOf(kari))))
+        assertEquals(MemberCardStatus.NEW_COURSE, kariWaits.status)
+        assertEquals(OtherPlayerStatus.ALREADY, kariWaits.others.single().status)
     }
 
     @Test

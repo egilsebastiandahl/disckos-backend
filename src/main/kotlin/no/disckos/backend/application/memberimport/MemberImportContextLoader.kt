@@ -2,7 +2,9 @@ package no.disckos.backend.application.memberimport
 
 import no.disckos.backend.application.admin.udiscimport.ImportNames
 import no.disckos.backend.application.admin.udiscimport.UdiscCard
+import no.disckos.backend.domain.HeldUploadStatus
 import no.disckos.backend.repository.EventRepository
+import no.disckos.backend.repository.HeldUploadRepository
 import no.disckos.backend.repository.HoleRepository
 import no.disckos.backend.repository.LocationRepository
 import no.disckos.backend.repository.PlayerRepository
@@ -35,6 +37,7 @@ class MemberImportContextLoader(
     private val courseAliasRepository: UdiscCourseAliasRepository,
     private val importedCardRepository: UdiscImportedCardRepository,
     private val confirmationRepository: ScoreConfirmationRepository,
+    private val heldUploadRepository: HeldUploadRepository,
 ) {
     private val oslo: ZoneId = ZoneId.of("Europe/Oslo")
 
@@ -69,6 +72,10 @@ class MemberImportContextLoader(
                 .groupBy({ it.date.atZoneSameInstant(oslo).toLocalDate() }, { it.locationId }),
             importedCards = importedCards(cards.map { it.key }),
             nearbyRounds = nearbyRounds(cards, courseAliases),
+            heldCards = heldUploadRepository.findByCardKeyIn(cards.map { it.key })
+                .filter { it.status == HeldUploadStatus.pending }
+                .groupBy({ it.cardKey }, { it.playerId })
+                .mapValues { (_, players) -> players.toSet() },
         )
     }
 
