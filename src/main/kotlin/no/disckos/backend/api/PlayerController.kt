@@ -17,6 +17,8 @@ import no.disckos.backend.application.player.GetPlayerStatsByLocationHandler
 import no.disckos.backend.application.player.GetPlayerStatsHandler
 import no.disckos.backend.application.player.GetPlayersHandler
 import no.disckos.backend.application.rank.GetPlayerRanksHandler
+import no.disckos.backend.api.dto.rating.PlayerRatingDetailResponse
+import no.disckos.backend.application.rating.GetPlayerRatingHandler
 import no.disckos.backend.repository.ProfileRepository
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -37,7 +39,13 @@ class PlayerController(
     private val getPlayerHolesHandler: GetPlayerHolesHandler,
     private val getPlayerRanksHandler: GetPlayerRanksHandler,
     private val getHeadToHeadHandler: GetHeadToHeadHandler,
+    private val getPlayerRatingHandler: GetPlayerRatingHandler,
 ) {
+    /** Disckos Rating with position, history and what each round was worth. */
+    @GetMapping("/{id}/rating")
+    fun getPlayerRating(@PathVariable id: UUID): PlayerRatingDetailResponse =
+        getPlayerRatingHandler.handle(id).toResponse(id)
+
     @GetMapping("/{id}/head-to-head/{opponentId}")
     fun getHeadToHead(@PathVariable id: UUID, @PathVariable opponentId: UUID): HeadToHeadResponse {
         val (result, locations) = getHeadToHeadHandler.handle(id, opponentId)
